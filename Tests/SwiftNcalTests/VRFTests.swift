@@ -1,421 +1,469 @@
-import XCTest
+import Foundation
+import Testing
+
 @testable import SwiftNcal
 
-final class VRFTests: XCTestCase {
-    
+@Suite("VRF (Verifiable Random Function)")
+struct VRFTests {
+
     // MARK: - Test Constants
-    
-    func testVRFConstants() {
-        XCTAssertEqual(VRF.seedBytes, 32, "VRF seed should be 32 bytes")
-        XCTAssertEqual(VRF.secretKeyBytes, 64, "VRF secret key should be 64 bytes")
-        XCTAssertEqual(VRF.publicKeyBytes, 32, "VRF public key should be 32 bytes")
-        XCTAssertEqual(VRF.proofBytes, 80, "VRF proof should be 80 bytes")
-        XCTAssertEqual(VRF.outputBytes, 64, "VRF output should be 64 bytes")
+
+    @Test("exposes expected constant sizes")
+    func testVRFConstants() async throws {
+        #expect(VRF.seedBytes == 32, "VRF seed should be 32 bytes")
+        #expect(VRF.secretKeyBytes == 64, "VRF secret key should be 64 bytes")
+        #expect(VRF.publicKeyBytes == 32, "VRF public key should be 32 bytes")
+        #expect(VRF.proofBytes == 80, "VRF proof should be 80 bytes")
+        #expect(VRF.outputBytes == 64, "VRF output should be 64 bytes")
     }
-    
+
     // MARK: - VRF Seed Tests
-    
-    func testVRFSeedGeneration() {
+
+    @Test("generates distinct seeds of expected size")
+    func testVRFSeedGeneration() async throws {
         let seed1 = VRFSeed.generate()
         let seed2 = VRFSeed.generate()
-        
-        XCTAssertEqual(seed1.bytes.count, VRF.seedBytes)
-        XCTAssertEqual(seed2.bytes.count, VRF.seedBytes)
-        XCTAssertNotEqual(seed1, seed2, "Generated seeds should be different")
+
+        #expect(seed1.bytes.count == VRF.seedBytes)
+        #expect(seed2.bytes.count == VRF.seedBytes)
+        #expect(seed1 != seed2, "Generated seeds should be different")
     }
-    
-    func testVRFSeedFromBytes() throws {
+
+    @Test("creates seed from bytes of correct size")
+    func testVRFSeedFromBytes() async throws {
         let randomBytes = Data(repeating: 0x42, count: VRF.seedBytes)
         let seed = try VRFSeed(bytes: randomBytes)
-        
-        XCTAssertEqual(seed.bytes, randomBytes)
+
+        #expect(seed.bytes == randomBytes)
     }
-    
-    func testVRFSeedFromBytesInvalidSize() {
+
+    @Test("fails to create seed from bytes with invalid size")
+    func testVRFSeedFromBytesInvalidSize() async throws {
         let invalidBytes = Data(repeating: 0x42, count: VRF.seedBytes - 1)
-        
-        XCTAssertThrowsError(try VRFSeed(bytes: invalidBytes)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidInputSize)
+
+        do {
+            _ = try VRFSeed(bytes: invalidBytes)
+            Issue.record("Expected VRFSeed init to fail with invalid input size")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidInputSize)
         }
     }
-    
-    func testVRFSeedFromHexString() throws {
+
+    @Test("creates seed from hex string and encodes back to the same hex")
+    func testVRFSeedFromHexString() async throws {
         let hexString = String(repeating: "42", count: VRF.seedBytes)
         let seed = try VRFSeed(hexString: hexString)
         let expectedBytes = Data(repeating: 0x42, count: VRF.seedBytes)
-        
-        XCTAssertEqual(seed.bytes, expectedBytes)
-        XCTAssertEqual(seed.hexEncodedString(), hexString)
+
+        #expect(seed.bytes == expectedBytes)
+        #expect(seed.hexEncodedString() == hexString)
     }
-    
-    func testVRFSeedFromInvalidHexString() {
+
+    @Test("fails to create seed from invalid hex string")
+    func testVRFSeedFromInvalidHexString() async throws {
         let invalidHex = "invalidhex"
-        
-        XCTAssertThrowsError(try VRFSeed(hexString: invalidHex)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidInputSize)
+
+        do {
+            _ = try VRFSeed(hexString: invalidHex)
+            Issue.record("Expected VRFSeed init to fail with invalid hex")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidInputSize)
         }
     }
-    
-    func testVRFSeedEquality() throws {
+
+    @Test("seed equality matches underlying bytes")
+    func testVRFSeedEquality() async throws {
         let bytes = Data(repeating: 0x42, count: VRF.seedBytes)
         let seed1 = try VRFSeed(bytes: bytes)
         let seed2 = try VRFSeed(bytes: bytes)
         let differentSeed = VRFSeed.generate()
-        
-        XCTAssertEqual(seed1, seed2)
-        XCTAssertNotEqual(seed1, differentSeed)
+
+        #expect(seed1 == seed2)
+        #expect(seed1 != differentSeed)
     }
-    
-    // Codable tests removed - project uses custom Encoder protocol
-    
+
     // MARK: - VRF Key Pair Tests
-    
-    func testVRFKeyPairGeneration() {
+
+    @Test("generates key pair of expected sizes")
+    func testVRFKeyPairGeneration() async throws {
         let keyPair = VRFKeyPair.generate()
-        
-        XCTAssertEqual(keyPair.signingKey.bytes.count, VRF.secretKeyBytes)
-        XCTAssertEqual(keyPair.verifyingKey.bytes.count, VRF.publicKeyBytes)
+
+        #expect(keyPair.signingKey.bytes.count == VRF.secretKeyBytes)
+        #expect(keyPair.verifyingKey.bytes.count == VRF.publicKeyBytes)
     }
-    
-    func testVRFKeyPairFromSeed() throws {
+
+    @Test("derives deterministic key pair from seed")
+    func testVRFKeyPairFromSeed() async throws {
         let seed = VRFSeed.generate()
         let keyPair = try VRFKeyPair.from(seed: seed)
-        
-        XCTAssertEqual(keyPair.signingKey.bytes.count, VRF.secretKeyBytes)
-        XCTAssertEqual(keyPair.verifyingKey.bytes.count, VRF.publicKeyBytes)
-        
-        // Test deterministic generation
+
+        #expect(keyPair.signingKey.bytes.count == VRF.secretKeyBytes)
+        #expect(keyPair.verifyingKey.bytes.count == VRF.publicKeyBytes)
+
+        // Deterministic from the same seed
         let keyPair2 = try VRFKeyPair.from(seed: seed)
-        XCTAssertEqual(keyPair.signingKey, keyPair2.signingKey)
-        XCTAssertEqual(keyPair.verifyingKey, keyPair2.verifyingKey)
+        #expect(keyPair.signingKey == keyPair2.signingKey)
+        #expect(keyPair.verifyingKey == keyPair2.verifyingKey)
     }
-    
-    func testVRFSigningKeyToVerifyingKey() throws {
+
+    @Test("computes verifying key from signing key deterministically")
+    func testVRFSigningKeyToVerifyingKey() async throws {
         let keyPair = VRFKeyPair.generate()
         let derivedVerifyingKey = keyPair.signingKey.verifyingKey
-        
-        XCTAssertEqual(keyPair.verifyingKey, derivedVerifyingKey)
+
+        #expect(keyPair.verifyingKey == derivedVerifyingKey)
     }
-    
-    func testVRFSigningKeyToSeed() throws {
+
+    @Test("derives seed from signing key deterministically")
+    func testVRFSigningKeyToSeed() async throws {
         let seed = VRFSeed.generate()
         let keyPair = try VRFKeyPair.from(seed: seed)
         let derivedSeed = keyPair.signingKey.seed
-        
-        XCTAssertEqual(seed, derivedSeed)
+
+        #expect(seed == derivedSeed)
     }
-    
+
     // MARK: - VRF Signing Key Tests
-    
-    func testVRFSigningKeyFromBytes() throws {
+
+    @Test("creates signing key from bytes of correct size")
+    func testVRFSigningKeyFromBytes() async throws {
         let randomBytes = Data((0..<VRF.secretKeyBytes).map { _ in UInt8.random(in: 0...255) })
         let signingKey = try VRFSigningKey(bytes: randomBytes)
-        
-        XCTAssertEqual(signingKey.bytes, randomBytes)
+
+        #expect(signingKey.bytes == randomBytes)
     }
-    
-    func testVRFSigningKeyFromBytesInvalidSize() {
+
+    @Test("fails to create signing key from bytes with invalid size")
+    func testVRFSigningKeyFromBytesInvalidSize() async throws {
         let invalidBytes = Data(repeating: 0x42, count: VRF.secretKeyBytes - 1)
-        
-        XCTAssertThrowsError(try VRFSigningKey(bytes: invalidBytes)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidInputSize)
+
+        do {
+            _ = try VRFSigningKey(bytes: invalidBytes)
+            Issue.record("Expected VRFSigningKey init to fail with invalid input size")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidInputSize)
         }
     }
-    
-    func testVRFSigningKeyFingerprint() throws {
+
+    @Test("produces a short fingerprint string")
+    func testVRFSigningKeyFingerprint() async throws {
         let keyPair = VRFKeyPair.generate()
         let fingerprint = keyPair.signingKey.fingerprint()
-        
-        XCTAssertTrue(fingerprint.hasSuffix("..."))
-        XCTAssertEqual(fingerprint.count, 19) // 16 hex chars + "..."
+
+        #expect(fingerprint.hasSuffix("..."))
+        #expect(fingerprint.count == 19) // 16 hex chars + "..."
     }
-    
-    // Codable tests removed - project uses custom Encoder protocol
-    
+
     // MARK: - VRF Verifying Key Tests
-    
-    func testVRFVerifyingKeyFromBytes() throws {
+
+    @Test("creates verifying key from bytes of correct size")
+    func testVRFVerifyingKeyFromBytes() async throws {
         let keyPair = VRFKeyPair.generate()
         let verifyingKey = try VRFVerifyingKey(bytes: keyPair.verifyingKey.bytes)
-        
-        XCTAssertEqual(verifyingKey, keyPair.verifyingKey)
+
+        #expect(verifyingKey == keyPair.verifyingKey)
     }
-    
-    func testVRFVerifyingKeyFromBytesInvalidSize() {
+
+    @Test("fails to create verifying key from bytes with invalid size")
+    func testVRFVerifyingKeyFromBytesInvalidSize() async throws {
         let invalidBytes = Data(repeating: 0x42, count: VRF.publicKeyBytes - 1)
-        
-        XCTAssertThrowsError(try VRFVerifyingKey(bytes: invalidBytes)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidInputSize)
+
+        do {
+            _ = try VRFVerifyingKey(bytes: invalidBytes)
+            Issue.record("Expected VRFVerifyingKey init to fail with invalid input size")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidInputSize)
         }
     }
-    
-    func testVRFVerifyingKeyFromHexString() throws {
+
+    @Test("creates verifying key from hex string")
+    func testVRFVerifyingKeyFromHexString() async throws {
         let keyPair = VRFKeyPair.generate()
         let hexString = keyPair.verifyingKey.hexEncodedString()
         let verifyingKey = try VRFVerifyingKey(hexString: hexString)
-        
-        XCTAssertEqual(verifyingKey, keyPair.verifyingKey)
+
+        #expect(verifyingKey == keyPair.verifyingKey)
     }
-    
-    // Codable tests removed - project uses custom Encoder protocol
-    
+
     // MARK: - VRF Proof Tests
-    
-    func testVRFProofGeneration() throws {
+
+    @Test("generates proof of expected size")
+    func testVRFProofGeneration() async throws {
         let keyPair = VRFKeyPair.generate()
         let message = "Hello, VRF!".data(using: .utf8)!
-        
+
         let proof = try keyPair.signingKey.prove(message: message)
-        
-        XCTAssertEqual(proof.bytes.count, VRF.proofBytes)
+
+        #expect(proof.bytes.count == VRF.proofBytes)
     }
-    
-    func testVRFProofFromBytes() throws {
+
+    @Test("creates proof from bytes and preserves equality")
+    func testVRFProofFromBytes() async throws {
         let keyPair = VRFKeyPair.generate()
         let message = "Hello, VRF!".data(using: .utf8)!
         let originalProof = try keyPair.signingKey.prove(message: message)
-        
+
         let proof = try VRFProof(bytes: originalProof.bytes)
-        
-        XCTAssertEqual(proof, originalProof)
+
+        #expect(proof == originalProof)
     }
-    
-    func testVRFProofFromBytesInvalidSize() {
+
+    @Test("fails to create proof from bytes with invalid size")
+    func testVRFProofFromBytesInvalidSize() async throws {
         let invalidBytes = Data(repeating: 0x42, count: VRF.proofBytes - 1)
-        
-        XCTAssertThrowsError(try VRFProof(bytes: invalidBytes)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidInputSize)
+
+        do {
+            _ = try VRFProof(bytes: invalidBytes)
+            Issue.record("Expected VRFProof init to fail with invalid input size")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidInputSize)
         }
     }
-    
-    func testVRFProofFromHexString() throws {
+
+    @Test("creates proof from hex string and preserves equality")
+    func testVRFProofFromHexString() async throws {
         let keyPair = VRFKeyPair.generate()
         let message = "Hello, VRF!".data(using: .utf8)!
         let originalProof = try keyPair.signingKey.prove(message: message)
-        
+
         let hexString = originalProof.hexEncodedString()
         let proof = try VRFProof(hexString: hexString)
-        
-        XCTAssertEqual(proof, originalProof)
+
+        #expect(proof == originalProof)
     }
-    
-    func testVRFProofHash() throws {
+
+    @Test("hashes proof to output of expected size")
+    func testVRFProofHash() async throws {
         let keyPair = VRFKeyPair.generate()
         let message = "Hello, VRF!".data(using: .utf8)!
         let proof = try keyPair.signingKey.prove(message: message)
-        
+
         let output = try proof.hash()
-        
-        XCTAssertEqual(output.bytes.count, VRF.outputBytes)
+
+        #expect(output.bytes.count == VRF.outputBytes)
     }
-    
-    // Codable tests removed - project uses custom Encoder protocol
-    
+
     // MARK: - VRF Output Tests
-    
-    func testVRFOutputFromBytes() throws {
+
+    @Test("creates output from bytes and preserves equality")
+    func testVRFOutputFromBytes() async throws {
         let keyPair = VRFKeyPair.generate()
         let message = "Hello, VRF!".data(using: .utf8)!
         let proof = try keyPair.signingKey.prove(message: message)
         let originalOutput = try keyPair.verifyingKey.verify(message: message, proof: proof)
-        
+
         let output = try VRFOutput(bytes: originalOutput.bytes)
-        
-        XCTAssertEqual(output, originalOutput)
+
+        #expect(output == originalOutput)
     }
-    
-    func testVRFOutputFromBytesInvalidSize() {
+
+    @Test("fails to create output from bytes with invalid size")
+    func testVRFOutputFromBytesInvalidSize() async throws {
         let invalidBytes = Data(repeating: 0x42, count: VRF.outputBytes - 1)
-        
-        XCTAssertThrowsError(try VRFOutput(bytes: invalidBytes)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidInputSize)
+
+        do {
+            _ = try VRFOutput(bytes: invalidBytes)
+            Issue.record("Expected VRFOutput init to fail with invalid input size")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidInputSize)
         }
     }
-    
-    // Codable tests removed - project uses custom Encoder protocol
-    
+
     // MARK: - VRF Full Workflow Tests
-    
-    func testVRFFullWorkflow() throws {
+
+    @Test("signs, verifies, and hashes deterministically for a message")
+    func testVRFFullWorkflow() async throws {
         // Generate a key pair
         let keyPair = VRFKeyPair.generate()
         let message = "Hello, VRF World!".data(using: .utf8)!
-        
+
         // Create a proof
         let proof = try keyPair.signingKey.prove(message: message)
-        
+
         // Verify the proof and get output
         let output = try keyPair.verifyingKey.verify(message: message, proof: proof)
-        
+
         // Extract output from proof directly
         let directOutput = try proof.hash()
-        
+
         // Both methods should produce the same output
-        XCTAssertEqual(output, directOutput)
-        
+        #expect(output == directOutput)
+
         // The output should be deterministic
         let proof2 = try keyPair.signingKey.prove(message: message)
         let output2 = try keyPair.verifyingKey.verify(message: message, proof: proof2)
-        
-        XCTAssertEqual(output, output2)
-        XCTAssertEqual(proof, proof2)
+
+        #expect(output == output2)
+        #expect(proof == proof2)
     }
-    
-    func testVRFDeterministicOutput() throws {
+
+    @Test("deterministic output for same seed and message")
+    func testVRFDeterministicOutput() async throws {
         // Same seed should produce same keys
         let seed = VRFSeed.generate()
         let keyPair1 = try VRFKeyPair.from(seed: seed)
         let keyPair2 = try VRFKeyPair.from(seed: seed)
-        
-        XCTAssertEqual(keyPair1.signingKey, keyPair2.signingKey)
-        XCTAssertEqual(keyPair1.verifyingKey, keyPair2.verifyingKey)
-        
+
+        #expect(keyPair1.signingKey == keyPair2.signingKey)
+        #expect(keyPair1.verifyingKey == keyPair2.verifyingKey)
+
         // Same key and message should produce same proof and output
         let message = "Deterministic test".data(using: .utf8)!
         let proof1 = try keyPair1.signingKey.prove(message: message)
         let proof2 = try keyPair2.signingKey.prove(message: message)
-        
-        XCTAssertEqual(proof1, proof2)
-        
+
+        #expect(proof1 == proof2)
+
         let output1 = try keyPair1.verifyingKey.verify(message: message, proof: proof1)
         let output2 = try keyPair2.verifyingKey.verify(message: message, proof: proof2)
-        
-        XCTAssertEqual(output1, output2)
+
+        #expect(output1 == output2)
     }
-    
-    func testVRFDifferentMessagesProduceDifferentOutputs() throws {
+
+    @Test("different messages produce different outputs")
+    func testVRFDifferentMessagesProduceDifferentOutputs() async throws {
         let keyPair = VRFKeyPair.generate()
         let message1 = "Message 1".data(using: .utf8)!
         let message2 = "Message 2".data(using: .utf8)!
-        
+
         let proof1 = try keyPair.signingKey.prove(message: message1)
         let proof2 = try keyPair.signingKey.prove(message: message2)
-        
+
         let output1 = try keyPair.verifyingKey.verify(message: message1, proof: proof1)
         let output2 = try keyPair.verifyingKey.verify(message: message2, proof: proof2)
-        
-        XCTAssertNotEqual(proof1, proof2)
-        XCTAssertNotEqual(output1, output2)
+
+        #expect(proof1 != proof2)
+        #expect(output1 != output2)
     }
-    
-    func testVRFDifferentKeysProduceDifferentOutputs() throws {
+
+    @Test("different keys produce different outputs for same message")
+    func testVRFDifferentKeysProduceDifferentOutputs() async throws {
         let keyPair1 = VRFKeyPair.generate()
         let keyPair2 = VRFKeyPair.generate()
         let message = "Same message".data(using: .utf8)!
-        
+
         let proof1 = try keyPair1.signingKey.prove(message: message)
         let proof2 = try keyPair2.signingKey.prove(message: message)
-        
+
         let output1 = try keyPair1.verifyingKey.verify(message: message, proof: proof1)
         let output2 = try keyPair2.verifyingKey.verify(message: message, proof: proof2)
-        
-        XCTAssertNotEqual(proof1, proof2)
-        XCTAssertNotEqual(output1, output2)
+
+        #expect(proof1 != proof2)
+        #expect(output1 != output2)
     }
-    
+
     // MARK: - VRF Error Tests
-    
-    func testVRFVerificationFailureWithWrongKey() throws {
+
+    @Test("verification fails with wrong key")
+    func testVRFVerificationFailureWithWrongKey() async throws {
         let keyPair1 = VRFKeyPair.generate()
         let keyPair2 = VRFKeyPair.generate()
         let message = "Test message".data(using: .utf8)!
-        
+
         let proof = try keyPair1.signingKey.prove(message: message)
-        
+
         // Try to verify with wrong key
-        XCTAssertThrowsError(try keyPair2.verifyingKey.verify(message: message, proof: proof)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.verificationFailed)
+        do {
+            _ = try keyPair2.verifyingKey.verify(message: message, proof: proof)
+            Issue.record("Expected verification to fail with wrong key")
+        } catch {
+            #expect((error as? VRFError) == VRFError.verificationFailed)
         }
     }
-    
-    func testVRFVerificationFailureWithWrongMessage() throws {
+
+    @Test("verification fails with wrong message")
+    func testVRFVerificationFailureWithWrongMessage() async throws {
         let keyPair = VRFKeyPair.generate()
         let message1 = "Original message".data(using: .utf8)!
         let message2 = "Different message".data(using: .utf8)!
-        
+
         let proof = try keyPair.signingKey.prove(message: message1)
-        
+
         // Try to verify with wrong message
-        XCTAssertThrowsError(try keyPair.verifyingKey.verify(message: message2, proof: proof)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.verificationFailed)
+        do {
+            _ = try keyPair.verifyingKey.verify(message: message2, proof: proof)
+            Issue.record("Expected verification to fail with wrong message")
+        } catch {
+            #expect((error as? VRFError) == VRFError.verificationFailed)
         }
     }
-    
-    func testVRFInvalidPublicKey() {
+
+    @Test("fails to create verifying key from invalid public key bytes")
+    func testVRFInvalidPublicKey() async throws {
         let invalidBytes = Data(repeating: 0x00, count: VRF.publicKeyBytes)
-        
-        XCTAssertThrowsError(try VRFVerifyingKey(bytes: invalidBytes)) { error in
-            XCTAssertEqual(error as? VRFError, VRFError.invalidPublicKey)
+
+        do {
+            _ = try VRFVerifyingKey(bytes: invalidBytes)
+            Issue.record("Expected VRFVerifyingKey init to fail with invalid public key")
+        } catch {
+            #expect((error as? VRFError) == VRFError.invalidPublicKey)
         }
     }
-    
-    // MARK: - Performance Tests
-    
-    func testVRFPerformance() throws {
-        let keyPair = VRFKeyPair.generate()
-        let message = "Performance test message".data(using: .utf8)!
-        
-        measure {
-            do {
-                let proof = try keyPair.signingKey.prove(message: message)
-                _ = try keyPair.verifyingKey.verify(message: message, proof: proof)
-            } catch {
-                XCTFail("VRF operations should not fail: \\(error)")
-            }
-        }
-    }
-    
-    func testVRFKeyGenerationPerformance() {
-        measure {
-            _ = VRFKeyPair.generate()
-        }
-    }
-    
+
     // MARK: - Known Test Vectors
-    
-    func testVRFWithKnownVector() throws {
+
+    @Test("produces consistent results for a known seed and message")
+    func testVRFWithKnownVector() async throws {
         // Using a known seed for deterministic testing
         let seedHex = "0000000000000000000000000000000000000000000000000000000000000000"
         let seed = try VRFSeed(hexString: seedHex)
         let keyPair = try VRFKeyPair.from(seed: seed)
-        
+
         let message = "test".data(using: .utf8)!
         let proof = try keyPair.signingKey.prove(message: message)
         let output = try keyPair.verifyingKey.verify(message: message, proof: proof)
-        
+
         // Verify that we get consistent results
-        XCTAssertEqual(proof.bytes.count, VRF.proofBytes)
-        XCTAssertEqual(output.bytes.count, VRF.outputBytes)
-        
+        #expect(proof.bytes.count == VRF.proofBytes)
+        #expect(output.bytes.count == VRF.outputBytes)
+
         // Test that the same input produces the same output
         let proof2 = try keyPair.signingKey.prove(message: message)
         let output2 = try keyPair.verifyingKey.verify(message: message, proof: proof2)
-        
-        XCTAssertEqual(proof, proof2)
-        XCTAssertEqual(output, output2)
+
+        #expect(proof == proof2)
+        #expect(output == output2)
     }
-    
+
     // MARK: - Edge Cases
-    
-    func testVRFWithEmptyMessage() throws {
+
+    @Test("handles empty message")
+    func testVRFWithEmptyMessage() async throws {
         let keyPair = VRFKeyPair.generate()
         let emptyMessage = Data()
-        
+
         let proof = try keyPair.signingKey.prove(message: emptyMessage)
         let output = try keyPair.verifyingKey.verify(message: emptyMessage, proof: proof)
-        
-        XCTAssertEqual(proof.bytes.count, VRF.proofBytes)
-        XCTAssertEqual(output.bytes.count, VRF.outputBytes)
+
+        #expect(proof.bytes.count == VRF.proofBytes)
+        #expect(output.bytes.count == VRF.outputBytes)
     }
-    
-    func testVRFWithLargeMessage() throws {
+
+    @Test("handles large message")
+    func testVRFWithLargeMessage() async throws {
         let keyPair = VRFKeyPair.generate()
         let largeMessage = Data(repeating: 0x42, count: 10000)
-        
+
         let proof = try keyPair.signingKey.prove(message: largeMessage)
         let output = try keyPair.verifyingKey.verify(message: largeMessage, proof: proof)
-        
-        XCTAssertEqual(proof.bytes.count, VRF.proofBytes)
-        XCTAssertEqual(output.bytes.count, VRF.outputBytes)
+
+        #expect(proof.bytes.count == VRF.proofBytes)
+        #expect(output.bytes.count == VRF.outputBytes)
+    }
+
+    // MARK: - Performance (converted to functional checks)
+
+    @Test("sign/verify completes without error")
+    func testVRFPerformance() async throws {
+        let keyPair = VRFKeyPair.generate()
+        let message = "Performance test message".data(using: .utf8)!
+
+        let proof = try keyPair.signingKey.prove(message: message)
+        _ = try keyPair.verifyingKey.verify(message: message, proof: proof)
+    }
+
+    @Test("generates key pair successfully")
+    func testVRFKeyGenerationPerformance() async throws {
+        _ = VRFKeyPair.generate()
     }
 }

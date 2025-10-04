@@ -1,85 +1,104 @@
-import XCTest
+import Testing
+import Foundation
 
 @testable import SwiftNcal
 
-class PwHashTests: XCTestCase {
+@Suite("Password hashing (Scrypt and Argon2)")
+struct PwHashTests {
     let pwHash = PwHash()
     let password = "password".data(using: .utf8)!
     let salt = Data(repeating: 0, count: 16)  // 16 bytes salt
-    let opsLimit = 3
-    let memLimit = 1 << 12  // 4 MB
+    // Use interactive values for better cross-platform compatibility  
+    var opsLimit: Int { pwHash.scrypt.opsLimitInteractive }
+    var memLimit: Int { pwHash.scrypt.memLimitInteractive }
 
-    func testKdfScryptsalsa208sha256() throws {
+    @Test("derives a 32-byte key using scryptsalsa208sha256")
+    func testKdfScryptsalsa208sha256() async throws {
         let derivedKey = try pwHash.kdfScryptsalsa208sha256(
             size: 32,
             password: password,
             salt: Data(repeating: 0, count: pwHash.scrypt.saltBytes))
-        XCTAssertEqual(derivedKey.count, 32, "Derived key length mismatch")
+        #expect(derivedKey.count == 32, "Derived key length mismatch")
     }
 
-    func testScryptsalsa208sha256Str() throws {
+    @Test("produces a scrypt hash with the expected prefix")
+    func testScryptsalsa208sha256Str() async throws {
         let passwordHash = try pwHash.scryptsalsa208sha256Str(
             password: password, opsLimit: opsLimit, memLimit: memLimit)
-        XCTAssertEqual(
-            String(passwordHash.prefix(pwHash.scrypt.strPrefix.count)), pwHash.scrypt.strPrefix,
+        #expect(
+            String(passwordHash.prefix(pwHash.scrypt.strPrefix.count)) == pwHash.scrypt.strPrefix,
             "Password hash prefix mismatch")
     }
 
-    func testVerifyScryptsalsa208sha256() throws {
+    @Test("verifies scryptsalsa208sha256 hashes correctly")
+    func testVerifyScryptsalsa208sha256() async throws {
         let passwordHash = try pwHash.scryptsalsa208sha256Str(
             password: password
         ).data(using: .utf8)!
         let isValid = try pwHash.verifyScryptsalsa208sha256(
             passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed")
+        #expect(isValid, "Password verification failed")
     }
 
-    func testVerify() throws {
+    @Test("verifies generic scrypt hashes correctly")
+    func testVerify() async throws {
         let passwordHash = try pwHash.scryptsalsa208sha256Str(
             password: password, opsLimit: opsLimit, memLimit: memLimit
         ).data(using: .utf8)!
         let isValid = try pwHash.verify(passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed")
+        #expect(isValid, "Password verification failed")
     }
 
-    func testVerifyWithInvalidPassword() throws {
+    @Test("fails verification with an invalid password")
+    func testVerifyWithInvalidPassword() async throws {
         let passwordHash = try pwHash.scryptsalsa208sha256Str(
             password: password, opsLimit: opsLimit, memLimit: memLimit
         ).data(using: .utf8)!
         let invalidPassword = "wrongpassword".data(using: .utf8)!
         let isValid = try pwHash.verify(passwordHash: passwordHash, password: invalidPassword)
-        XCTAssertFalse(isValid, "Password verification should fail for invalid password")
+        #expect(!isValid, "Password verification should fail for invalid password")
     }
 
-    func testVerifyWithInvalidHash() throws {
+    @Test("throws for an invalid hash input")
+    func testVerifyWithInvalidHash() async throws {
         let invalidHash = "invalidhash".data(using: .utf8)!
-        XCTAssertThrowsError(
-            try pwHash.verify(passwordHash: invalidHash, password: password),
-            "Expected error for invalid hash")
+        do {
+            _ = try pwHash.verify(passwordHash: invalidHash, password: password)
+            Issue.record("Expected error for invalid hash")
+        } catch {
+            // Expected to throw
+        }
     }
 
-    func testVerifyWithArgon2idPrefix() throws {
+    @Test("verifies when the hash has an Argon2id prefix")
+    func testVerifyWithArgon2idPrefix() async throws {
         let passwordHash = try pwHash.argon2id.str(password: password)
         let isValid = try pwHash.verify(passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed for Argon2id prefix")
+        #expect(isValid, "Password verification failed for Argon2id prefix")
     }
 
-    func testVerifyWithArgon2iPrefix() throws {
+    @Test("verifies when the hash has an Argon2i prefix")
+    func testVerifyWithArgon2iPrefix() async throws {
         let passwordHash = try pwHash.argon2i.str(password: password)
         let isValid = try pwHash.verify(passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed for Argon2i prefix")
+        #expect(isValid, "Password verification failed for Argon2i prefix")
     }
 
-    func testVerifyWithScryptPrefix() throws {
+    @Test("verifies when the hash has a scrypt prefix")
+    func testVerifyWithScryptPrefix() async throws {
         let passwordHash = try pwHash.scrypt.str(password: password).data(using: .utf8)!
         let isValid = try pwHash.verify(passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed for Scrypt prefix")
+        #expect(isValid, "Password verification failed for Scrypt prefix")
     }
 
-    func testVerifyWithUnsupportedPrefix() throws {
+    @Test("throws for an unsupported hash prefix")
+    func testVerifyWithUnsupportedPrefix() async throws {
         let unsupportedHash = "unsupported$hash".data(using: .utf8)!
-        XCTAssertThrowsError(
-            try pwHash.verify(passwordHash: unsupportedHash, password: password),
-            "Expected error for unsupported hash prefix")
+        do {
+            _ = try pwHash.verify(passwordHash: unsupportedHash, password: password)
+            Issue.record("Expected error for unsupported hash prefix")
+        } catch {
+            // Expected to throw
+        }
     }
 }

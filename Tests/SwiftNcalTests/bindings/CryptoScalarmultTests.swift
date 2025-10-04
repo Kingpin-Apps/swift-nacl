@@ -1,42 +1,50 @@
-import XCTest
+import Testing
+import Foundation
 @testable import SwiftNcal
 
-final class CryptoScalarmultTests: XCTestCase {
+@Suite("CryptoScalarmultTests")
+struct CryptoScalarmultTests {
     
     let cryptoScalarmult = Sodium().cryptoScalarmult
     
+    @Test("base returns expected length")
     func testCryptoScalarmultBase() throws {
         let scalar = Data(repeating: 0x01, count: Int(cryptoScalarmult.scalarBytes))
         let result = try cryptoScalarmult.base(n: scalar)
-        XCTAssertEqual(result.count, Int(cryptoScalarmult.scalarBytes), "Result length mismatch")
+        #expect(result.count == Int(cryptoScalarmult.scalarBytes), "Result length mismatch")
     }
 
+    @Test("cryptoScalarmult returns expected length")
     func testCryptoScalarmult() throws {
         let scalar = Data(repeating: 0x01, count: Int(cryptoScalarmult.scalarBytes))
         let point = Data(repeating: 0x02, count: Int(cryptoScalarmult.bytes))
         let result = try cryptoScalarmult.cryptoScalarmult(n: scalar, p: point)
-        XCTAssertEqual(result.count, Int(cryptoScalarmult.scalarBytes), "Result length mismatch")
+        #expect(result.count == Int(cryptoScalarmult.scalarBytes), "Result length mismatch")
     }
 
+    @Test("ed25519Base returns expected length")
     func testCryptoScalarmultEd25519Base() throws {
         let scalar = Data(repeating: 0x03, count: Int(cryptoScalarmult.ed25519ScalarBytes))
         let result = try cryptoScalarmult.ed25519Base(n: scalar)
-        XCTAssertEqual(result.count, Int(cryptoScalarmult.ed25519Bytes), "Result length mismatch")
+        #expect(result.count == Int(cryptoScalarmult.ed25519Bytes), "Result length mismatch")
     }
 
+    @Test("ed25519BaseNoclamp returns expected length")
     func testCryptoScalarmultEd25519BaseNoclamp() throws {
         let scalar = Data(repeating: 0x04, count: Int(cryptoScalarmult.ed25519ScalarBytes))
         let result = try cryptoScalarmult.ed25519BaseNoclamp(n: scalar)
-        XCTAssertEqual(result.count, Int(cryptoScalarmult.ed25519Bytes), "Result length mismatch")
+        #expect(result.count == Int(cryptoScalarmult.ed25519Bytes), "Result length mismatch")
     }
 
+    @Test("ed25519 returns expected length")
     func testCryptoScalarmultEd25519() throws {
         let scalar = Data(repeating: 0x05, count: Int(cryptoScalarmult.ed25519ScalarBytes))
         let point = Data(repeating: 0x06, count: Int(cryptoScalarmult.ed25519Bytes))
         let result = try cryptoScalarmult.ed25519(n: scalar, p: point)
-        XCTAssertEqual(result.count, Int(cryptoScalarmult.ed25519Bytes), "Result length mismatch")
+        #expect(result.count == Int(cryptoScalarmult.ed25519Bytes), "Result length mismatch")
     }
 
+    @Test("ed25519 noclamp equivalence and clamping behavior")
     func testCryptoScalarmultEd25519Noclamp() throws {
         // An arbitrary scalar that differs once clamped
         let scalar = Data(repeating: 0x01, count: Int(cryptoScalarmult.ed25519ScalarBytes))
@@ -59,8 +67,8 @@ final class CryptoScalarmultTests: XCTestCase {
         let pc = try cryptoScalarmult.ed25519Base(n: scalar)
         
         // Validate results
-        XCTAssertEqual(p, pb, "Results from noclamp and base_noclamp should match")
-        XCTAssertNotEqual(pb, pc, "Results from base_noclamp and base should differ")
+        #expect(p == pb, "Results from noclamp and base_noclamp should match")
+        #expect(pb != pc, "Results from base_noclamp and base should differ")
 
         // Manually clamp the scalar
         var clampedScalar = scalar
@@ -75,6 +83,7 @@ final class CryptoScalarmultTests: XCTestCase {
         let p2 = try cryptoScalarmult.ed25519(n: scalar, p: basepoint)
 
         // Validate that the results are identical
-        XCTAssertEqual(p1, p2, "Results from manually clamped and automatic clamping should match")
+        #expect(p1 == p2, "Results from manually clamped and automatic clamping should match")
     }
 }
+

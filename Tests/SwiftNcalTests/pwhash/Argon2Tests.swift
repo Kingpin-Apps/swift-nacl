@@ -1,7 +1,10 @@
-import XCTest
+import Testing
+import Foundation
+
 @testable import SwiftNcal
 
-class Argon2Tests: XCTestCase {
+@Suite("Argon2 password hashing")
+struct Argon2Tests {
     let argon2 = Argon2()
     let sodium = Sodium()
     let password = "password".data(using: .utf8)!
@@ -9,7 +12,8 @@ class Argon2Tests: XCTestCase {
     let opsLimit = 3
     let memLimit = 1 << 12 // 4 MB
 
-    func testArgon2Verify() throws {
+    @Test("verifies a valid password hash")
+    func testArgon2Verify() async throws {
         let passwordHash = try sodium.cryptoPwHash.strAlg(
             passwd: password,
             opslimit: sodium.cryptoPwHash.argon2iOpslimitMin,
@@ -17,10 +21,11 @@ class Argon2Tests: XCTestCase {
             alg: argon2.algArgon2i13
         )
         let isValid = try argon2.verify(passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed")
+        #expect(isValid, "Password verification failed")
     }
 
-    func testArgon2VerifyWithInvalidPassword() throws {
+    @Test("fails verification with invalid password")
+    func testArgon2VerifyWithInvalidPassword() async throws {
         let passwordHash = try sodium.cryptoPwHash.strAlg(
             passwd: password,
             opslimit: sodium.cryptoPwHash.argon2iOpslimitMin,
@@ -29,11 +34,14 @@ class Argon2Tests: XCTestCase {
         )
         let invalidPassword = "wrongpassword".data(using: .utf8)!
         let isValid = try argon2.verify(passwordHash: passwordHash, password: invalidPassword)
-        XCTAssertFalse(isValid, "Password verification should fail for invalid password")
+        #expect(!isValid, "Password verification should fail for invalid password")
     }
 
-    func testArgon2VerifyWithInvalidHash() throws {
+    @Test("throws for invalid hash input")
+    func testArgon2VerifyWithInvalidHash() async throws {
         let invalidHash = Data(repeating: 0, count: 129)
-        XCTAssertThrowsError(try argon2.verify(passwordHash: invalidHash, password: password), "Expected error for invalid hash")
+        #expect(throws: Error.self) {
+            _ = try argon2.verify(passwordHash: invalidHash, password: password)
+        }
     }
 }

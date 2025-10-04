@@ -1,76 +1,78 @@
-import XCTest
+import Foundation
+import Testing
+
 @testable import SwiftNcal
 
-class CryptoSignTests: XCTestCase {
+@Suite("Crypto Sign Tests")
+struct CryptoSignTests {
     let cryptoSign = Sodium().cryptoSign
     
-    // Test keypair generation
-    func testCryptoSignKeypair() throws {
+    @Test("Keypair generation works correctly")
+    func keypair() async throws {
         let keypair = try cryptoSign.keypair()
-        XCTAssertEqual(keypair.publicKey.count, cryptoSign.publicKeyBytes, "Public key length mismatch")
-        XCTAssertEqual(keypair.secretKey.count, cryptoSign.secretKeyBytes, "Secret key length mismatch")
+        #expect(keypair.publicKey.count == cryptoSign.publicKeyBytes, "Public key length mismatch")
+        #expect(keypair.secretKey.count == cryptoSign.secretKeyBytes, "Secret key length mismatch")
     }
     
-    // Test seed-based keypair generation
-    func testCryptoSignSeedKeypair() throws {
+    @Test("Seed-based keypair generation works correctly")
+    func seedKeypair() async throws {
         let seed = Data(repeating: 0x01, count: cryptoSign.seedBytes)
         let keypair = try cryptoSign.seedKeypair(seed: seed)
-        XCTAssertEqual(keypair.publicKey.count, cryptoSign.publicKeyBytes, "Public key length mismatch")
-        XCTAssertEqual(keypair.secretKey.count, cryptoSign.secretKeyBytes, "Secret key length mismatch")
+        #expect(keypair.publicKey.count == cryptoSign.publicKeyBytes, "Public key length mismatch")
+        #expect(keypair.secretKey.count == cryptoSign.secretKeyBytes, "Secret key length mismatch")
     }
     
-    // Test message signing and verification
-    func testCryptoSignAndOpen() throws {
+    @Test("Message signing and verification works correctly")
+    func signAndOpen() async throws {
         let keypair = try cryptoSign.keypair()
         let message = "Hello, Sodium!".data(using: .utf8)!
         
         let signedMessage = try cryptoSign.sign(message: message, sk: keypair.secretKey)
-        XCTAssertEqual(
-            signedMessage.count,
-            message.count + cryptoSign.bytes,
-            "Unsigned message does not match the original message"
+        #expect(
+            signedMessage.count == message.count + cryptoSign.bytes,
+            "Signed message length should equal message length plus signature bytes"
         )
         
         let unsignedMessage = try cryptoSign.open(signed: signedMessage, pk: keypair.publicKey)
         
-        XCTAssertEqual(
-            unsignedMessage.count,
-            message.count,
-            "Unsigned message does not match the original message"
+        #expect(
+            unsignedMessage.count == message.count,
+            "Unsigned message length should match original message length"
         )
+        #expect(unsignedMessage == message, "Unsigned message should match original message")
     }
     
-    // Test Ed25519 public key conversion to Curve25519
-    func testCryptoSignEd25519PkToCurve25519() throws {
+    @Test("Ed25519 public key conversion to Curve25519 works correctly")
+    func ed25519PkToCurve25519() async throws {
         let keypair = try cryptoSign.keypair()
         let curve25519PublicKey = try cryptoSign.ed25519PkToCurve25519(publicKeyBytes: keypair.publicKey)
-        XCTAssertEqual(curve25519PublicKey.count, cryptoSign.curve25519Bytes, "Curve25519 public key length mismatch")
+        #expect(curve25519PublicKey.count == cryptoSign.curve25519Bytes, "Curve25519 public key length mismatch")
     }
     
-    // Test Ed25519 secret key conversion to Curve25519
-    func testCryptoSignEd25519SkToCurve25519() throws {
+    @Test("Ed25519 secret key conversion to Curve25519 works correctly")
+    func ed25519SkToCurve25519() async throws {
         let keypair = try cryptoSign.keypair()
         let curve25519SecretKey = try cryptoSign.ed25519SkToCurve25519(secretKeyBytes: keypair.secretKey)
-        XCTAssertEqual(curve25519SecretKey.count, cryptoSign.curve25519Bytes, "Curve25519 secret key length mismatch")
+        #expect(curve25519SecretKey.count == cryptoSign.curve25519Bytes, "Curve25519 secret key length mismatch")
     }
     
-    // Test extracting public key from secret key
-    func testCryptoSignEd25519SkToPk() throws {
+    @Test("Extracting public key from secret key works correctly")
+    func ed25519SkToPk() async throws {
         let keypair = try cryptoSign.keypair()
         let extractedPublicKey = try cryptoSign.ed25519SkToPk(secretKeyBytes: keypair.secretKey)
-        XCTAssertEqual(extractedPublicKey, keypair.publicKey, "Extracted public key does not match original")
+        #expect(extractedPublicKey == keypair.publicKey, "Extracted public key does not match original")
     }
     
-    // Test extracting seed from secret key
-    func testCryptoSignEd25519SkToSeed() throws {
+    @Test("Extracting seed from secret key works correctly")
+    func ed25519SkToSeed() async throws {
         let seed = Data(repeating: 0x01, count: cryptoSign.seedBytes)
         let keypair = try cryptoSign.seedKeypair(seed: seed)
         let extractedSeed = try cryptoSign.ed25519SkToSeed(secretKeyBytes: keypair.secretKey)
-        XCTAssertEqual(extractedSeed, seed, "Extracted seed does not match the original")
+        #expect(extractedSeed == seed, "Extracted seed does not match the original")
     }
     
-    // Test prehashed signing and verification
-    func testCryptoSignEd25519ph() throws {
+    @Test("Prehashed signing and verification works correctly")
+    func ed25519ph() async throws {
         let keypair = try cryptoSign.keypair()
         let message = "Prehashed test message".data(using: .utf8)!
         
@@ -78,9 +80,9 @@ class CryptoSignTests: XCTestCase {
         try cryptoSign.ed25519phUpdate(edph: edph, pmsg: message)
         
         let signature = try cryptoSign.ed25519phFinalCreate(edph: edph, sk: keypair.secretKey)
-        XCTAssertEqual(signature.count, cryptoSign.bytes, "Signature length mismatch")
+        #expect(signature.count == cryptoSign.bytes, "Signature length mismatch")
         
         let isValid = try cryptoSign.ed25519phFinalVerify(edph: edph, signature: signature, pk: keypair.publicKey)
-        XCTAssertTrue(isValid, "Signature verification failed")
+        #expect(isValid, "Signature verification failed")
     }
 }

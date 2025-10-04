@@ -1,12 +1,15 @@
 import Clibsodium
-import XCTest
+import Testing
+import Foundation
 
 @testable import SwiftNcal
 
-class CryptoPwHashTests: XCTestCase {
+@Suite("Crypto PwHash Tests")
+struct CryptoPwHashTests {
     let cryptoPwHash = Sodium().cryptoPwHash
 
-    func testScryptsalsa208sha256LL() throws {
+    @Test("Scryptsalsa208sha256 LL function works correctly")
+    func scryptsalsa208sha256LL() async throws {
         let passwd = "password".data(using: .utf8)!
         let salt = Data(repeating: 0, count: cryptoPwHash.scryptsalsa208sha256Saltbytes)
         let n = 16384
@@ -17,10 +20,11 @@ class CryptoPwHashTests: XCTestCase {
         let derivedKey = try cryptoPwHash.scryptsalsa208sha256LL(
             passwd: passwd, salt: salt, n: n, r: r, p: p, dklen: dklen)
 
-        XCTAssertEqual(derivedKey.count, dklen, "Derived key length mismatch")
+        #expect(derivedKey.count == dklen, "Derived key length mismatch")
     }
 
-    func testScryptsalsa208sha256Str() throws {
+    @Test("Scryptsalsa208sha256 Str function works correctly")
+    func scryptsalsa208sha256Str() async throws {
         let passwd = "password".data(using: .utf8)!
         let opslimit = cryptoPwHash.scryptOpslimitInteractive
         let memlimit = cryptoPwHash.scryptMemlimitInteractive
@@ -28,11 +32,12 @@ class CryptoPwHashTests: XCTestCase {
         let hashStr = try cryptoPwHash.scryptsalsa208sha256Str(
             passwd: passwd, opsLimit: opslimit, memLimit: memlimit)
 
-        XCTAssertEqual(
-            hashStr.count, cryptoPwHash.scryptStrbytes - 1, "Hash string length mismatch")
+        #expect(
+            hashStr.count == cryptoPwHash.scryptStrbytes - 1, "Hash string length mismatch")
     }
 
-    func testScryptsalsa208sha256StrVerify() throws {
+    @Test("Scryptsalsa208sha256 Str Verify function works correctly")
+    func scryptsalsa208sha256StrVerify() async throws {
         let passwd = "password".data(using: .utf8)!
         let opslimit = cryptoPwHash.scryptOpslimitInteractive
         let memlimit = cryptoPwHash.scryptMemlimitInteractive
@@ -44,10 +49,11 @@ class CryptoPwHashTests: XCTestCase {
         let isValid = try cryptoPwHash.scryptsalsa208sha256StrVerify(
             passwd_hash: hashData, passwd: passwd)
 
-        XCTAssertTrue(isValid, "Password verification failed")
+        #expect(isValid, "Password verification failed")
     }
 
-    func testCryptoPwhashAlg() throws {
+    @Test("Argon2i alg hash produces expected length")
+    func cryptoPwhashAlg() async throws {
         let passwd = "password".data(using: .utf8)!
         let salt = Data(repeating: 0, count: cryptoPwHash.saltBytes)
         let opslimit = cryptoPwHash.argon2iOpslimitInteractive
@@ -59,10 +65,11 @@ class CryptoPwHashTests: XCTestCase {
             outlen: outlen, passwd: passwd, salt: salt, opslimit: opslimit, memlimit: memlimit,
             alg: alg)
 
-        XCTAssertEqual(derivedKey.count, outlen, "Derived key length mismatch")
+        #expect(derivedKey.count == outlen, "Derived key length mismatch")
     }
 
-    func testStrAlg() throws {
+    @Test("Argon2i strAlg produces expected hash length")
+    func strAlg() async throws {
         let passwd = "password".data(using: .utf8)!
         let opslimit = cryptoPwHash.argon2iOpslimitInteractive
         let memlimit = cryptoPwHash.argon2iMemlimitInteractive
@@ -71,10 +78,11 @@ class CryptoPwHashTests: XCTestCase {
         let hashData = try cryptoPwHash.strAlg(
             passwd: passwd, opslimit: opslimit, memlimit: memlimit, alg: alg)
 
-        XCTAssertEqual(hashData.count, 128, "Hash data length mismatch")
+        #expect(hashData.count == 128, "Hash data length mismatch")
     }
 
-    func testStrVerify() throws {
+    @Test("Argon2i strVerify validates password correctly")
+    func strVerify() async throws {
         let passwd = "password".data(using: .utf8)!
         let opslimit = cryptoPwHash.argon2iOpslimitInteractive
         let memlimit = cryptoPwHash.argon2iMemlimitInteractive
@@ -85,6 +93,6 @@ class CryptoPwHashTests: XCTestCase {
 
         let isValid = try cryptoPwHash.strVerify(passwd_hash: hashData, passwd: passwd)
 
-        XCTAssertTrue(isValid, "Password verification failed")
+        #expect(isValid, "Password verification failed")
     }
 }

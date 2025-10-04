@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "artifacts": {
+    "Clibsodium": {
+      "type": "staticLibrary",
+      "version": "1.0.19",
+      "variants": [
+        {
+          "path": "linux-x86_64/libsodium.a",
+          "supportedTriples": ["x86_64-unknown-linux-gnu"],
+          "staticLibraryMetadata": {
+            "headerPaths": ["linux-x86_64/include"],
+            "moduleMapPath": "linux-x86_64/module.modulemap"
+          }
+        },
+        {
+          "path": "linux-aarch64/libsodium.a", 
+          "supportedTriples": ["aarch64-unknown-linux-gnu"],
+          "staticLibraryMetadata": {
+            "headerPaths": ["linux-aarch64/include"],
+            "moduleMapPath": "linux-aarch64/module.modulemap"
+          }
+        }
+      ]
+    }
+  }
+}

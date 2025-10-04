@@ -1,10 +1,13 @@
-import XCTest
+import Testing
 
 @testable import SwiftNcal
 
-class CryptoGenericHashTests: XCTestCase {
+@Suite("Crypto Generic Hash Tests")
+struct CryptoGenericHashTests {
     let sodium = Sodium()
-    func testBlake2bSaltPersonal() throws {
+    
+    @Test("BLAKE2b hash computation")
+    func testBlake2bSaltPersonal() async throws {
         let cryptoGenericHash = sodium.cryptoGenericHash
 
         let message = "Hello, World!".data(using: .utf8)!
@@ -15,10 +18,11 @@ class CryptoGenericHashTests: XCTestCase {
         let hash = try cryptoGenericHash.blake2bSaltPersonal(
             data: message, digestSize: digestSize, salt: salt, person: person)
 
-        XCTAssertEqual(hash.count, digestSize, "Hash length mismatch")
+        #expect(hash.count == digestSize, "Hash length mismatch")
     }
 
-    func testBlake2bInit() throws {
+    @Test("BLAKE2b state initialization")
+    func testBlake2bInit() async throws {
         let cryptoGenericHash = sodium.cryptoGenericHash
 
         let key = "supersecretkey".data(using: .utf8)!
@@ -29,10 +33,11 @@ class CryptoGenericHashTests: XCTestCase {
         let state = try cryptoGenericHash.blake2bInit(
             key: key, salt: salt, person: person, digestSize: digestSize)
 
-        XCTAssertEqual(state.digestSize, digestSize, "Digest size mismatch")
+        #expect(state.digestSize == digestSize, "Digest size mismatch")
     }
 
-    func testBlake2bUpdate() throws {
+    @Test("BLAKE2b hash update")
+    func testBlake2bUpdate() async throws {
         let cryptoGenericHash = sodium.cryptoGenericHash
 
         let key = "supersecretkey".data(using: .utf8)!
@@ -45,14 +50,14 @@ class CryptoGenericHashTests: XCTestCase {
             key: key, salt: salt, person: person, digestSize: digestSize)
         try cryptoGenericHash.blake2bUpdate(state: state, data: message)
 
-        XCTAssertEqual(
-            state.statebuf.count,
-            cryptoGenericHash.stateBytes,
+        #expect(
+            state.statebuf.count == cryptoGenericHash.stateBytes,
             "Hash length mismatch"
         )
     }
 
-    func testBlake2bFinal() throws {
+    @Test("BLAKE2b finalization")
+    func testBlake2bFinal() async throws {
         let cryptoGenericHash = sodium.cryptoGenericHash
 
         let key = "supersecretkey".data(using: .utf8)!
@@ -67,6 +72,6 @@ class CryptoGenericHashTests: XCTestCase {
 
         let hash = try cryptoGenericHash.blake2bFinal(state: state)
 
-        XCTAssertEqual(hash.count, cryptoGenericHash.bytesMax, "Hash length mismatch")
+        #expect(hash.count == cryptoGenericHash.bytesMax, "Hash length mismatch")
     }
 }

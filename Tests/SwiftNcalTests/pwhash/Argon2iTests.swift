@@ -1,8 +1,10 @@
-import XCTest
+import Testing
+import Foundation
 
 @testable import SwiftNcal
 
-class Argon2iTests: XCTestCase {
+@Suite("Argon2i Password Hashing Tests")
+struct Argon2iTests {
     let argon2i = Argon2i()
     let sodium = Sodium()
     let password = "password".data(using: .utf8)!
@@ -10,7 +12,8 @@ class Argon2iTests: XCTestCase {
     let opsLimit = 3
     let memLimit = 1 << 12  // 4 MB
 
-    func testArgon2iVerify() throws {
+    @Test("Argon2i password verification succeeds with correct password")
+    func testArgon2iVerify() async throws {
         let passwordHash = try sodium.cryptoPwHash.strAlg(
             passwd: password,
             opslimit: sodium.cryptoPwHash.argon2iOpslimitMin,
@@ -18,10 +21,11 @@ class Argon2iTests: XCTestCase {
             alg: argon2i.alg
         )
         let isValid = try argon2i.verify(passwordHash: passwordHash, password: password)
-        XCTAssertTrue(isValid, "Password verification failed")
+        #expect(isValid, "Password verification failed")
     }
 
-    func testArgon2iVerifyWithInvalidPassword() throws {
+    @Test("Argon2i password verification fails with incorrect password")
+    func testArgon2iVerifyWithInvalidPassword() async throws {
         let passwordHash = try sodium.cryptoPwHash.strAlg(
             passwd: password,
             opslimit: sodium.cryptoPwHash.argon2iOpslimitMin,
@@ -30,43 +34,51 @@ class Argon2iTests: XCTestCase {
         )
         let invalidPassword = "wrongpassword".data(using: .utf8)!
         let isValid = try argon2i.verify(passwordHash: passwordHash, password: invalidPassword)
-        XCTAssertFalse(isValid, "Password verification should fail for invalid password")
+        #expect(!isValid, "Password verification should fail for invalid password")
     }
 
-    func testArgon2iVerifyWithInvalidHash() throws {
+    @Test("Argon2i password verification throws error with invalid hash format")
+    func testArgon2iVerifyWithInvalidHash() async throws {
         let invalidHash = Data(repeating: 0, count: 129)  // Invalid hash length
-        XCTAssertThrowsError(
-            try argon2i.verify(passwordHash: invalidHash, password: password),
-            "Expected error for invalid hash")
+        #expect(throws: Error.self) {
+            try argon2i.verify(passwordHash: invalidHash, password: password)
+        }
     }
 
-    func testArgon2iKdf() throws {
+    @Test("Argon2i KDF generates key with correct length")
+    func testArgon2iKdf() async throws {
         let derivedKey = try argon2i.kdf(
             size: 32, password: password, salt: salt)
-        XCTAssertEqual(derivedKey.count, 32, "Derived key length mismatch")
+        #expect(derivedKey.count == 32, "Derived key length mismatch")
     }
 
-    func testArgon2iKdfWithInvalidSalt() throws {
+    @Test("Argon2i KDF throws error with invalid salt length")
+    func testArgon2iKdfWithInvalidSalt() async throws {
         let invalidSalt = Data(repeating: 0, count: argon2i.saltBytes - 1)  // Invalid salt length
-        XCTAssertThrowsError(
+        #expect(throws: Error.self) {
             try argon2i.kdf(
                 size: 32, password: password, salt: invalidSalt, opsLimit: opsLimit,
-                memLimit: memLimit), "Expected error for invalid salt length")
+                memLimit: memLimit)
+        }
     }
 
-    func testArgon2iKdfWithInvalidOpsLimit() throws {
+    @Test("Argon2i KDF throws error with invalid operations limit")
+    func testArgon2iKdfWithInvalidOpsLimit() async throws {
         let invalidOpsLimit = 0  // Invalid ops limit
-        XCTAssertThrowsError(
+        #expect(throws: Error.self) {
             try argon2i.kdf(
                 size: 32, password: password, salt: salt, opsLimit: invalidOpsLimit,
-                memLimit: memLimit), "Expected error for invalid ops limit")
+                memLimit: memLimit)
+        }
     }
 
-    func testArgon2iKdfWithInvalidMemLimit() throws {
+    @Test("Argon2i KDF throws error with invalid memory limit")
+    func testArgon2iKdfWithInvalidMemLimit() async throws {
         let invalidMemLimit = 0  // Invalid memory limit
-        XCTAssertThrowsError(
+        #expect(throws: Error.self) {
             try argon2i.kdf(
                 size: 32, password: password, salt: salt, opsLimit: opsLimit,
-                memLimit: invalidMemLimit), "Expected error for invalid memory limit")
+                memLimit: invalidMemLimit)
+        }
     }
 }

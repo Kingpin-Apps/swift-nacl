@@ -1,26 +1,30 @@
-import Clibsodium
-import XCTest
+import Foundation
+import Testing
 
 @testable import SwiftNcal
 
-class CryptoKxTests: XCTestCase {
+@Suite("CryptoKxTests")
+struct CryptoKxTests {
     let cryptoKx = Sodium().cryptoKx
 
+    @Test("keypair generates keys with expected lengths")
     func testKeypair() throws {
         let (publicKey, secretKey) = try cryptoKx.keypair()
 
-        XCTAssertEqual(publicKey.count, cryptoKx.publicKeyBytes, "Public key length mismatch")
-        XCTAssertEqual(secretKey.count, cryptoKx.secretKeyBytes, "Secret key length mismatch")
+        #expect(publicKey.count == cryptoKx.publicKeyBytes, "Public key length mismatch")
+        #expect(secretKey.count == cryptoKx.secretKeyBytes, "Secret key length mismatch")
     }
 
+    @Test("seedKeypair generates keys with expected lengths")
     func testSeedKeypair() throws {
         let seed = Data(repeating: 0, count: cryptoKx.seedBytes)
         let (publicKey, secretKey) = try cryptoKx.seedKeypair(seed: seed)
 
-        XCTAssertEqual(publicKey.count, cryptoKx.publicKeyBytes, "Public key length mismatch")
-        XCTAssertEqual(secretKey.count, cryptoKx.secretKeyBytes, "Secret key length mismatch")
+        #expect(publicKey.count == cryptoKx.publicKeyBytes, "Public key length mismatch")
+        #expect(secretKey.count == cryptoKx.secretKeyBytes, "Secret key length mismatch")
     }
 
+    @Test("clientSessionKeys returns rx/tx keys with expected lengths")
     func testClientSessionKeys() throws {
         let (clientPublicKey, clientSecretKey) = try cryptoKx.keypair()
         let (serverPublicKey, _) = try cryptoKx.keypair()
@@ -31,10 +35,11 @@ class CryptoKxTests: XCTestCase {
             serverPublicKey: serverPublicKey
         )
 
-        XCTAssertEqual(rxKey.count, cryptoKx.sessionKeyBytes, "Receive key length mismatch")
-        XCTAssertEqual(txKey.count, cryptoKx.sessionKeyBytes, "Transmit key length mismatch")
+        #expect(rxKey.count == cryptoKx.sessionKeyBytes, "Receive key length mismatch")
+        #expect(txKey.count == cryptoKx.sessionKeyBytes, "Transmit key length mismatch")
     }
 
+    @Test("serverSessionKeys returns rx/tx keys with expected lengths")
     func testServerSessionKeys() throws {
         let (serverPublicKey, serverSecretKey) = try cryptoKx.keypair()
         let (clientPublicKey, _) = try cryptoKx.keypair()
@@ -45,7 +50,7 @@ class CryptoKxTests: XCTestCase {
             clientPublicKey: clientPublicKey
         )
 
-        XCTAssertEqual(rxKey.count, cryptoKx.sessionKeyBytes, "Receive key length mismatch")
-        XCTAssertEqual(txKey.count, cryptoKx.sessionKeyBytes, "Transmit key length mismatch")
+        #expect(rxKey.count == cryptoKx.sessionKeyBytes, "Receive key length mismatch")
+        #expect(txKey.count == cryptoKx.sessionKeyBytes, "Transmit key length mismatch")
     }
 }

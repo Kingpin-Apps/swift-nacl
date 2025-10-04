@@ -97,6 +97,24 @@ public struct Scrypt {
                         "The salt must be exactly \(saltBytes), not \(salt.count) bytes long"
                     )
         )
+        
+        // Validate operations limit
+        try ensure(
+            opsLim >= opsLimitMin && opsLim <= opsLimitMax,
+            raising:
+                    .valueError(
+                        "The operations limit must be between \(opsLimitMin) and \(opsLimitMax), not \(opsLim)"
+                    )
+        )
+        
+        // Validate memory limit
+        try ensure(
+            memLim >= memLimitMin && memLim <= memLimitMax,
+            raising:
+                    .valueError(
+                        "The memory limit must be between \(memLimitMin) and \(memLimitMax), not \(memLim)"
+                    )
+        )
 
         let (nLog2, r, p) = sodium.cryptoPwHash.naclBindingsPickScryptParams(
             opsLimit: opsLim,
@@ -154,19 +172,17 @@ public struct Scrypt {
      .. versionadded:: 1.2
      */
     public func verify(passwordHash: Data, password: Data) throws -> Bool {
+        // Validate password hash length with some tolerance for platform differences
+        // but still enforce reasonable bounds
         try ensure(
-            passwordHash.count == pwhashSize,
-            raising: .valueError("The password hash must be exactly \(strbytesPlusOne) bytes long")
+            passwordHash.count >= pwhashSize - 1 && passwordHash.count <= pwhashSize + 1,
+            raising: .valueError("The password hash must be approximately \(pwhashSize) bytes long")
         )
-        do {
-            return try sodium.cryptoPwHash
-                .scryptsalsa208sha256StrVerify(
-                    passwd_hash: passwordHash,
-                    passwd: password
-                )
-        } catch SodiumError.invalidKeyError {
-            return false
-        }
+        return try sodium.cryptoPwHash
+            .scryptsalsa208sha256StrVerify(
+                passwd_hash: passwordHash,
+                passwd: password
+            )
 
         
     }

@@ -1,52 +1,51 @@
 import Foundation
-import XCTest
+import Testing
 
 @testable import SwiftNcal
 
-class RandomBytesTests: XCTestCase {
+@Suite("Random Bytes Tests") struct RandomBytesTests {
     let randomBytes = Sodium().randomBytes
 
-    func testRandomBytesGeneratesCorrectSize() {
+    @Test("randomBytes generates the requested number of bytes")
+    func testRandomBytesGeneratesCorrectSize() async throws {
         let size = 32
         let randomData = randomBytes.randomBytes(size: size)
 
-        XCTAssertEqual(
-            randomData.count, size, "randomBytes did not generate the correct number of bytes")
+        #expect(randomData.count == size, "randomBytes did not generate the correct number of bytes")
     }
 
-    func testRandomBytesGeneratesUniqueValues() {
+    @Test("randomBytes produces different values across calls")
+    func testRandomBytesGeneratesUniqueValues() async throws {
         let size = 32
         let randomData1 = randomBytes.randomBytes(size: size)
         let randomData2 = randomBytes.randomBytes(size: size)
 
-        XCTAssertNotEqual(
-            randomData1, randomData2, "randomBytes generated identical values for different calls")
+        #expect(randomData1 != randomData2, "randomBytes generated identical values for different calls")
     }
 
-    func testRandomBytesBufDeterministicGeneratesCorrectSize() throws {
+    @Test("bufDeterministic generates the requested number of bytes")
+    func testRandomBytesBufDeterministicGeneratesCorrectSize() async throws {
         let size = 32
         let seed = Data(repeating: 1, count: randomBytes.seedBytes)
 
         let deterministicData = try randomBytes.bufDeterministic(size: size, seed: seed)
 
-        XCTAssertEqual(
-            deterministicData.count, size,
-            "randomBytesBufDeterministic did not generate the correct number of bytes")
+        #expect(deterministicData.count == size, "randomBytesBufDeterministic did not generate the correct number of bytes")
     }
 
-    func testRandomBytesBufDeterministicWithSameSeedProducesSameOutput() throws {
+    @Test("bufDeterministic same seed produces same output")
+    func testRandomBytesBufDeterministicWithSameSeedProducesSameOutput() async throws {
         let size = 32
         let seed = Data(repeating: 1, count: randomBytes.seedBytes)
 
         let deterministicData1 = try randomBytes.bufDeterministic(size: size, seed: seed)
         let deterministicData2 = try randomBytes.bufDeterministic(size: size, seed: seed)
 
-        XCTAssertEqual(
-            deterministicData1, deterministicData2,
-            "randomBytesBufDeterministic with the same seed produced different outputs")
+        #expect(deterministicData1 == deterministicData2, "randomBytesBufDeterministic with the same seed produced different outputs")
     }
 
-    func testRandomBytesBufDeterministicWithDifferentSeedsProducesDifferentOutput() throws {
+    @Test("bufDeterministic different seeds produce different outputs")
+    func testRandomBytesBufDeterministicWithDifferentSeedsProducesDifferentOutput() async throws {
         let size = 32
         let seed1 = Data(repeating: 1, count: randomBytes.seedBytes)
         let seed2 = Data(repeating: 2, count: randomBytes.seedBytes)
@@ -54,52 +53,43 @@ class RandomBytesTests: XCTestCase {
         let deterministicData1 = try randomBytes.bufDeterministic(size: size, seed: seed1)
         let deterministicData2 = try randomBytes.bufDeterministic(size: size, seed: seed2)
 
-        XCTAssertNotEqual(
-            deterministicData1, deterministicData2,
-            "randomBytesBufDeterministic with different seeds produced the same output")
+        #expect(deterministicData1 != deterministicData2, "randomBytesBufDeterministic with different seeds produced the same output")
     }
 
-    func testRandomBytesBufDeterministicThrowsErrorForInvalidSeedLength() {
+    @Test("bufDeterministic throws for invalid seed length")
+    func testRandomBytesBufDeterministicThrowsErrorForInvalidSeedLength() async throws {
         let size = 32
         let invalidSeed = Data(repeating: 1, count: randomBytes.seedBytes - 1)  // Invalid seed length
-
-        XCTAssertThrowsError(try randomBytes.bufDeterministic(size: size, seed: invalidSeed)) {
-            error in
-            if let sodiumError = error as? SodiumError {
-                XCTAssertEqual(
-                    sodiumError,
-                    .invalidSeedLength("Seed must be \(randomBytes.seedBytes) bytes long"),
-                    "Incorrect error for invalid seed length")
-            } else {
-                XCTFail("Unexpected error type")
-            }
+        
+        #expect(throws: SodiumError.invalidSeedLength("Seed must be \(randomBytes.seedBytes) bytes long")) {
+            try randomBytes.bufDeterministic(size: size, seed: invalidSeed)
         }
     }
 
-    func testRandom() {
+    @Test("random returns value in 32-bit range")
+    func testRandom() async throws {
         let randomValue = randomBytes.random()
-        XCTAssertTrue(randomValue >= 0 && randomValue <= 0xffff_ffff, "Random value out of bounds")
+        #expect(randomValue >= 0 && randomValue <= 0xffff_ffff, "Random value out of bounds")
     }
 
-    func testUniform() {
+    @Test("uniform returns value within upperBound")
+    func testUniform() async throws {
         let upperBound: UInt32 = 100
         let uniformValue = randomBytes.uniform(upperBound: upperBound)
-        XCTAssertTrue(uniformValue >= 0 && uniformValue < upperBound, "Uniform value out of bounds")
+        #expect(uniformValue >= 0 && uniformValue < upperBound, "Uniform value out of bounds")
     }
 
-    func testUniformWithPowerOfTwoUpperBound() {
+    @Test("uniform with power-of-two upperBound returns value within bound")
+    func testUniformWithPowerOfTwoUpperBound() async throws {
         let upperBound: UInt32 = 128
         let uniformValue = randomBytes.uniform(upperBound: upperBound)
-        XCTAssertTrue(
-            uniformValue >= 0 && uniformValue < upperBound,
-            "Uniform value out of bounds for power of two upper bound")
+        #expect(uniformValue >= 0 && uniformValue < upperBound, "Uniform value out of bounds for power of two upper bound")
     }
 
-    func testUniformWithNonPowerOfTwoUpperBound() {
+    @Test("uniform with non-power-of-two upperBound returns value within bound")
+    func testUniformWithNonPowerOfTwoUpperBound() async throws {
         let upperBound: UInt32 = 150
         let uniformValue = randomBytes.uniform(upperBound: upperBound)
-        XCTAssertTrue(
-            uniformValue >= 0 && uniformValue < upperBound,
-            "Uniform value out of bounds for non-power of two upper bound")
+        #expect(uniformValue >= 0 && uniformValue < upperBound, "Uniform value out of bounds for non-power of two upper bound")
     }
 }

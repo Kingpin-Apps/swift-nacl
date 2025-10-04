@@ -1,27 +1,31 @@
 import Clibsodium
-import XCTest
+import Testing
+import Foundation
 
 @testable import SwiftNcal
 
-class CryptoSecretStreamTests: XCTestCase {
+@Suite("Crypto Secret Stream Tests") struct CryptoSecretStreamTests {
     let cryptoSecretStream = Sodium().cryptoSecretStream
 
+    @Test("keygen returns key with expected length")
     func testKeygen() {
         let key = cryptoSecretStream.xchacha20poly1305Keygen()
-        XCTAssertEqual(key.count, cryptoSecretStream.xchacha20poly1305Keybytes, "Generated key length mismatch")
+        #expect(key.count == cryptoSecretStream.xchacha20poly1305Keybytes, "Generated key length mismatch")
     }
 
+    @Test("initPush produces header of expected length and initPull succeeds")
     func testInitPushAndPull() throws {
         let key = cryptoSecretStream.xchacha20poly1305Keygen()
         let statePush = CryptoSecretstreamXchacha20poly1305State()
         let statePull = CryptoSecretstreamXchacha20poly1305State()
 
         let header = try cryptoSecretStream.xchacha20poly1305InitPush(state: statePush, key: key)
-        XCTAssertEqual(header.count, cryptoSecretStream.xchacha20poly1305Headerbytes, "Header length mismatch")
+        #expect(header.count == cryptoSecretStream.xchacha20poly1305Headerbytes, "Header length mismatch")
 
         try cryptoSecretStream.xchacha20poly1305InitPull(state: statePull, header: header, key: key)
     }
 
+    @Test("push/pull roundtrip yields original message and tag")
     func testPushAndPull() throws {
         let key = cryptoSecretStream.xchacha20poly1305Keygen()
         let statePush = CryptoSecretstreamXchacha20poly1305State()
@@ -37,10 +41,11 @@ class CryptoSecretStreamTests: XCTestCase {
         let ciphertext = try cryptoSecretStream.xchacha20poly1305Push(state: statePush, message: message, additionalData: additionalData, tag: tag)
         let (decryptedMessage, decryptedTag) = try cryptoSecretStream.xchacha20poly1305Pull(state: statePull, ciphertext: ciphertext, additionalData: additionalData)
 
-        XCTAssertEqual(message, decryptedMessage, "Decrypted message does not match the original message")
-        XCTAssertEqual(tag, UInt8(decryptedTag), "Decrypted tag does not match the original tag")
+        #expect(message == decryptedMessage, "Decrypted message does not match the original message")
+        #expect(tag == UInt8(decryptedTag), "Decrypted tag does not match the original tag")
     }
 
+    @Test("rekey executes without throwing")
     func testRekey() throws {
         let key = cryptoSecretStream.xchacha20poly1305Keygen()
         let statePush = CryptoSecretstreamXchacha20poly1305State()
@@ -49,18 +54,24 @@ class CryptoSecretStreamTests: XCTestCase {
         cryptoSecretStream.xchacha20poly1305Rekey(state: statePush)
     }
 
+    @Test("initPush throws for invalid key length")
     func testInitPushWithInvalidKey() throws {
         let key = Data(repeating: 0, count: cryptoSecretStream.xchacha20poly1305Keybytes - 1) // Invalid key length
         let statePush = CryptoSecretstreamXchacha20poly1305State()
 
-        XCTAssertThrowsError(try cryptoSecretStream.xchacha20poly1305InitPush(state: statePush, key: key), "Expected error for invalid key length")
+        #expect(throws: Error.self, "Expected error for invalid key length") {
+            try cryptoSecretStream
+                .xchacha20poly1305InitPush(state: statePush, key: key)
+        }
     }
 
+    @Test("initPull throws for invalid header length")
     func testInitPullWithInvalidHeader() throws {
         let key = cryptoSecretStream.xchacha20poly1305Keygen()
         let statePull = CryptoSecretstreamXchacha20poly1305State()
         let header = Data(repeating: 0, count: cryptoSecretStream.xchacha20poly1305Headerbytes - 1) // Invalid header length
 
-        XCTAssertThrowsError(try cryptoSecretStream.xchacha20poly1305InitPull(state: statePull, header: header, key: key), "Expected error for invalid header length")
+        #expect(throws: Error.self, "Expected error for invalid header length") { try cryptoSecretStream.xchacha20poly1305InitPull(state: statePull, header: header, key: key) }
     }
 }
+

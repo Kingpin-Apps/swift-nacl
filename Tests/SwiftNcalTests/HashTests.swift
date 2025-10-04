@@ -1,46 +1,59 @@
-import XCTest
+import Foundation
+import Testing
 
 @testable import SwiftNcal
 
-class HashTests: XCTestCase {
+@Suite("Hashing algorithms")
+struct HashTests {
     let _hash = Hash()
     let message = "The quick brown fox jumps over the lazy dog".data(using: .utf8)!
     let key = Data(repeating: 0, count: 16)  // 16 bytes key
     let salt = Data(repeating: 0, count: 16)  // 16 bytes salt
     let person = Data(repeating: 0, count: 16)  // 16 bytes personalization
 
-    func testSha256() throws {
+    @Test("computes SHA-256 and returns expected length")
+    func testSha256() async throws {
         let hashedMessage = try _hash.sha256(message: message)
-        XCTAssertEqual(hashedMessage.count, 64, "SHA256 hash length mismatch")
+        #expect(hashedMessage.count == 64, "SHA256 hash length mismatch")
     }
 
-    func testSha512() throws {
+    @Test("computes SHA-512 and returns expected length")
+    func testSha512() async throws {
         let hashedMessage = try _hash.sha512(message: message)
-        XCTAssertEqual(hashedMessage.count, 128, "SHA512 hash length mismatch")
+        #expect(hashedMessage.count == 128, "SHA512 hash length mismatch")
     }
 
-    func testBlake2b() throws {
+    @Test("computes Blake2b with custom parameters and returns expected length")
+    func testBlake2b() async throws {
         let hashedMessage = try _hash.blake2b(
             data: message, digestSize: 32, key: key, salt: salt, person: person)
-        XCTAssertEqual(hashedMessage.count, 64, "Blake2b hash length mismatch")
+        #expect(hashedMessage.count == 64, "Blake2b hash length mismatch")
     }
 
-    func testBlake2bWithDefaultParameters() throws {
+    @Test("computes Blake2b with default parameters and returns expected length")
+    func testBlake2bWithDefaultParameters() async throws {
         let hashedMessage = try _hash.blake2b(data: message)
-        XCTAssertEqual(
-            hashedMessage.count, 64, "Blake2b hash length mismatch with default parameters")
+        #expect(
+            hashedMessage.count == 64,
+            "Blake2b hash length mismatch with default parameters"
+        )
     }
 
-    func testSiphash24() throws {
+    @Test("computes SipHash-2-4 and returns expected length")
+    func testSiphash24() async throws {
         let hashedMessage = try _hash.siphash24(
             message: message,
             key: Data(repeating: 0, count: _hash.siphashKeyBytes)
         )
-        XCTAssertEqual(hashedMessage.count, _hash.siphashKeyBytes, "Siphash24 hash length mismatch")
+        #expect(
+            hashedMessage.count == _hash.siphashKeyBytes,
+            "Siphash24 hash length mismatch"
+        )
     }
 
-    func testSiphashx24() throws {
+    @Test("computes SipHash-x-2-4 and returns expected length")
+    func testSiphashx24() async throws {
         let hashedMessage = try _hash.siphashx24(message: message, key: key)
-        XCTAssertEqual(hashedMessage.count, 32, "Siphashx24 hash length mismatch")
+        #expect(hashedMessage.count == 32, "Siphashx24 hash length mismatch")
     }
 }

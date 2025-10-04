@@ -4,11 +4,7 @@ import Foundation
 // Define UINT64_MAX and SIZE_MAX
 let UINT64_MAX: UInt64 = UInt64.max
 let SIZE_MAX: UInt64 = {
-    if UInt.bitWidth == 64 {
-        return UInt64.max
-    } else {
-        return UInt64(UInt32.max)
-    }
+    UInt64.max
 }()
 
 let sodiumSizeMax: UInt64 = {

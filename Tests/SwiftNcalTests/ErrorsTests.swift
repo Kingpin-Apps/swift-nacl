@@ -1,59 +1,70 @@
-import XCTest
+import Testing
 
 @testable import SwiftNcal
 
-class SodiumErrorTests: XCTestCase {
+@Suite("SodiumError equality and ensure() behavior")
+struct SodiumErrorTests {
 
-    func testSodiumErrorEquatable() {
-        XCTAssertEqual(
-            SodiumError.badSignatureError("error"), SodiumError.badSignatureError("error"))
-        XCTAssertNotEqual(
-            SodiumError.badSignatureError("error1"), SodiumError.badSignatureError("error2"))
+    @Test("equates and differentiates SodiumError cases by value")
+    func testSodiumErrorEquatable() async throws {
+        #expect(
+            SodiumError.badSignatureError("error") == SodiumError.badSignatureError("error")
+        )
+        #expect(
+            SodiumError.badSignatureError("error1") != SodiumError.badSignatureError("error2")
+        )
 
-        XCTAssertEqual(SodiumError.cryptoError("error"), SodiumError.cryptoError("error"))
-        XCTAssertNotEqual(SodiumError.cryptoError("error1"), SodiumError.cryptoError("error2"))
+        #expect(SodiumError.cryptoError("error") == SodiumError.cryptoError("error"))
+        #expect(SodiumError.cryptoError("error1") != SodiumError.cryptoError("error2"))
 
-        XCTAssertEqual(SodiumError.cryptPrefixError("error"), SodiumError.cryptPrefixError("error"))
-        XCTAssertNotEqual(
-            SodiumError.cryptPrefixError("error1"), SodiumError.cryptPrefixError("error2"))
+        #expect(SodiumError.cryptPrefixError("error") == SodiumError.cryptPrefixError("error"))
+        #expect(
+            SodiumError.cryptPrefixError("error1") != SodiumError.cryptPrefixError("error2")
+        )
 
-        XCTAssertEqual(SodiumError.invalidKeyError("error"), SodiumError.invalidKeyError("error"))
-        XCTAssertNotEqual(
-            SodiumError.invalidKeyError("error1"), SodiumError.invalidKeyError("error2"))
+        #expect(SodiumError.invalidKeyError("error") == SodiumError.invalidKeyError("error"))
+        #expect(
+            SodiumError.invalidKeyError("error1") != SodiumError.invalidKeyError("error2")
+        )
 
-        XCTAssertEqual(
-            SodiumError.invalidSeedLength("error"), SodiumError.invalidSeedLength("error"))
-        XCTAssertNotEqual(
-            SodiumError.invalidSeedLength("error1"), SodiumError.invalidSeedLength("error2"))
+        #expect(SodiumError.invalidSeedLength("error") == SodiumError.invalidSeedLength("error"))
+        #expect(
+            SodiumError.invalidSeedLength("error1") != SodiumError.invalidSeedLength("error2")
+        )
 
-        XCTAssertEqual(SodiumError.runtimeError("error"), SodiumError.runtimeError("error"))
-        XCTAssertNotEqual(SodiumError.runtimeError("error1"), SodiumError.runtimeError("error2"))
+        #expect(SodiumError.runtimeError("error") == SodiumError.runtimeError("error"))
+        #expect(SodiumError.runtimeError("error1") != SodiumError.runtimeError("error2"))
 
-        XCTAssertEqual(SodiumError.typeError("error"), SodiumError.typeError("error"))
-        XCTAssertNotEqual(SodiumError.typeError("error1"), SodiumError.typeError("error2"))
+        #expect(SodiumError.typeError("error") == SodiumError.typeError("error"))
+        #expect(SodiumError.typeError("error1") != SodiumError.typeError("error2"))
 
-        XCTAssertEqual(SodiumError.unavailableError("error"), SodiumError.unavailableError("error"))
-        XCTAssertNotEqual(
-            SodiumError.unavailableError("error1"), SodiumError.unavailableError("error2"))
+        #expect(SodiumError.unavailableError("error") == SodiumError.unavailableError("error"))
+        #expect(
+            SodiumError.unavailableError("error1") != SodiumError.unavailableError("error2")
+        )
 
-        XCTAssertEqual(SodiumError.valueError("error"), SodiumError.valueError("error"))
-        XCTAssertNotEqual(SodiumError.valueError("error1"), SodiumError.valueError("error2"))
+        #expect(SodiumError.valueError("error") == SodiumError.valueError("error"))
+        #expect(SodiumError.valueError("error1") != SodiumError.valueError("error2"))
     }
 
-    func testEnsureFunction() {
-        XCTAssertNoThrow(try ensure(true, raising: .runtimeError("This should not throw")))
+    @Test("ensure(_:raising:) throws the provided error when condition is false and not when true")
+    func testEnsureFunction() async throws {
+        // Should not throw
+        try ensure(true, raising: .runtimeError("This should not throw"))
 
-        XCTAssertThrowsError(try ensure(false, raising: .runtimeError("This should throw"))) {
-            error in
-            XCTAssertEqual(error as? SodiumError, SodiumError.runtimeError("This should throw"))
+        // Should throw runtimeError
+        #expect(throws: SodiumError.runtimeError("This should throw")) {
+            try ensure(false, raising: .runtimeError("This should throw"))
         }
 
-        XCTAssertThrowsError(try ensure(false, raising: .valueError("Value error"))) { error in
-            XCTAssertEqual(error as? SodiumError, SodiumError.valueError("Value error"))
+        // Should throw valueError
+        #expect(throws: SodiumError.valueError("Value error")) {
+            try ensure(false, raising: .valueError("Value error"))
         }
 
-        XCTAssertThrowsError(try ensure(false, raising: .cryptoError("Crypto error"))) { error in
-            XCTAssertEqual(error as? SodiumError, SodiumError.cryptoError("Crypto error"))
+        // Should throw cryptoError
+        #expect(throws: SodiumError.cryptoError("Crypto error")) {
+            try ensure(false, raising: .cryptoError("Crypto error"))
         }
     }
 }

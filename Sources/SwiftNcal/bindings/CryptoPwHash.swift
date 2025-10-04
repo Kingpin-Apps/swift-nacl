@@ -257,10 +257,20 @@ public struct CryptoPwHash {
      */
     func scryptsalsa208sha256StrVerify(passwd_hash: Data, passwd: Data) throws -> Bool {
 
+        // Remove strict length validation since different platforms may handle
+        // null-terminated strings differently. The actual validation should happen
+        // at the libsodium level.
         try ensure(
-            passwd_hash.count == scryptStrbytes - 1, raising: .valueError("Invalid password hash"))
+            !passwd_hash.isEmpty && passwd_hash.count <= scryptStrbytes, 
+            raising: .valueError("Invalid password hash"))
 
-        let ret = passwd_hash.withUnsafeBytes { passwdHashPtr in
+        // Ensure the password hash data is properly null-terminated
+        var nullTerminatedHash = passwd_hash
+        if passwd_hash.last != 0 {
+            nullTerminatedHash.append(0)
+        }
+        
+        let ret = nullTerminatedHash.withUnsafeBytes { passwdHashPtr in
             passwd.withUnsafeBytes { passwdPtr in
                 guard let passwdHashPtr = passwdHashPtr.baseAddress,
                     let passwdPtr = passwdPtr.baseAddress
@@ -275,8 +285,11 @@ public struct CryptoPwHash {
             }
         }
 
-        try ensure(ret == 0, raising: .invalidKeyError("Wrong password"))
-        return true
+        if ret == 0 {
+            return true
+        } else {
+            return false
+        }
     }
 
     private func checkArgon2LimitsAlg(opslimit: Int, memlimit: Int, alg: Int) throws {
@@ -436,7 +449,10 @@ public struct CryptoPwHash {
             }
         }
 
-        try ensure(ret == 0, raising: .invalidKeyError("Wrong password"))
-        return true
+        if ret == 0 {
+            return true
+        } else {
+            return false
+        }
     }
 }

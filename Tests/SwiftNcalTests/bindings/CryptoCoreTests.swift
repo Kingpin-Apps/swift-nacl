@@ -1,10 +1,15 @@
-import XCTest
+import Foundation
+import Clibsodium
+import Testing
+
 @testable import SwiftNcal
 
-final class CryptoCoreEd25519Tests: XCTestCase {
+@Suite("Crypto Core Ed25519 Tests")
+struct CryptoCoreEd25519Tests {
     let sodium = Sodium()
 
-    func testCryptoCoreEd25519IsValidPoint() throws {
+    @Test("Ed25519 is valid point check")
+    func testCryptoCoreEd25519IsValidPoint() async throws {
         /// Verify crypto_core_ed25519_is_valid_point correctly rejects the all-zeros "point"
 
         // Generate a valid point (mocked or generated using libsodium)
@@ -12,10 +17,11 @@ final class CryptoCoreEd25519Tests: XCTestCase {
         
         let result = try sodium.cryptoCore.ed25519IsValidPoint(zeroPoint)
         
-        XCTAssertFalse(result, "The all-zeros point should not be valid on the edwards25519 curve.")
+        #expect(result == false, "The all-zeros point should not be valid on the edwards25519 curve.")
     }
 
-    func testCryptoCoreEd25519FromUniform() throws {
+    @Test("Ed25519 from uniform mapping to valid points")
+    func testCryptoCoreEd25519FromUniform() async throws {
         /// Verify `cryptoCoreEd25519FromUniform` maps 32-byte inputs to valid points.
 
        var isValid = true
@@ -28,7 +34,7 @@ final class CryptoCoreEd25519Tests: XCTestCase {
            isValid = isValid && isValidPoint
        }
        
-       XCTAssertTrue(isValid, "All generated points should be valid.")
+        #expect(isValid == true, "All generated points should be valid.")
 
        // Test with specific input and expected output from libsodium discussion
        let randomDataInput = Data([
@@ -41,20 +47,21 @@ final class CryptoCoreEd25519Tests: XCTestCase {
        ])
 
        // Verify invalid input
-       XCTAssertFalse(try sodium.cryptoCore.ed25519IsValidPoint(randomDataInput),
+       #expect(try sodium.cryptoCore.ed25519IsValidPoint(randomDataInput) == false,
                       "The input should not initially be a valid point.")
 
        // Convert to point
        let randomDataToCurve = try sodium.cryptoCore.ed25519FromUniform(randomDataInput)
 
        // Verify valid output and match the expected output
-       XCTAssertTrue(try sodium.cryptoCore.ed25519IsValidPoint(randomDataToCurve),
+       #expect(try sodium.cryptoCore.ed25519IsValidPoint(randomDataToCurve) == true,
                      "The output should be a valid point.")
-       XCTAssertEqual(randomDataToCurve, expectedOutput,
+       #expect(randomDataToCurve == expectedOutput,
                       "The output should match the expected output.")
     }
     
-    func testEd25519AddAndSub() throws {
+    @Test("Ed25519 point addition and subtraction")
+    func testEd25519AddAndSub() async throws {
         /// The public component of a ed25519 keypair is a point on the ed25519 curve
         // Generate two key pairs
         let (p1, _) = try sodium.cryptoSign.keypair()
@@ -64,16 +71,17 @@ final class CryptoCoreEd25519Tests: XCTestCase {
         let p3 = try sodium.cryptoCore.ed25519Add(p1, p2)
         
         // Verify that the resulting point is valid
-        XCTAssertTrue(try sodium.cryptoCore.ed25519IsValidPoint(p3))
+        #expect(try sodium.cryptoCore.ed25519IsValidPoint(p3) == true)
         
         // Subtract p1 from p3 and ensure the result is p2
-        XCTAssertEqual(try sodium.cryptoCore.ed25519Sub(p3, p1), p2)
+        #expect(try sodium.cryptoCore.ed25519Sub(p3, p1) == p2)
         
         // Subtract p2 from p3 and ensure the result is p1
-        XCTAssertEqual(try sodium.cryptoCore.ed25519Sub(p3, p2), p1)
+        #expect(try sodium.cryptoCore.ed25519Sub(p3, p2) == p1)
     }
     
-    func testEd25519ScalarInvertNegateComplement() throws {
+    @Test("Ed25519 scalar invert, negate, and complement operations")
+    func testEd25519ScalarInvertNegateComplement() async throws {
         // Define zero and one scalars
         let zero = Data(repeating: 0, count: sodium.cryptoCore.ed25519ScalarBytes)
         var one = Data(repeating: 0, count: sodium.cryptoCore.ed25519ScalarBytes)
@@ -86,20 +94,21 @@ final class CryptoCoreEd25519Tests: XCTestCase {
         // Test scalar inversion
         let i = try sodium.cryptoCore.ed25519ScalarInvert(sclr)
         let sclrMulI = try sodium.cryptoCore.ed25519ScalarMul(sclr, i)
-        XCTAssertEqual(sclrMulI, one)
+        #expect(sclrMulI == one)
         
         // Test scalar negation
         let n = try sodium.cryptoCore.ed25519ScalarNegate(sclr)
         let sclrPlusN = try sodium.cryptoCore.ed25519ScalarAdd(sclr, n)
-        XCTAssertEqual(sclrPlusN, zero)
+        #expect(sclrPlusN == zero)
         
         // Test scalar complement
         let cp = try sodium.cryptoCore.ed25519ScalarComplement(sclr)
         let sclrPlusCp = try sodium.cryptoCore.ed25519ScalarAdd(sclr, cp)
-        XCTAssertEqual(sclrPlusCp, one)
+        #expect(sclrPlusCp == one)
     }
-
-    func testEd25519ScalarReduce() throws {
+    
+    @Test("Ed25519 scalar reduction")
+    func testEd25519ScalarReduce() async throws {
         // Define zero scalar
         let zero = Data(repeating: 0, count: sodium.cryptoCore.ed25519ScalarBytes)
         
@@ -129,6 +138,6 @@ final class CryptoCoreEd25519Tests: XCTestCase {
         let r = try sodium.cryptoCore.ed25519ScalarReduce(big)
         
         // Assert that the reduced value equals the original scalar p
-        XCTAssertEqual(r, p)
+        #expect(r == p)
     }
 }

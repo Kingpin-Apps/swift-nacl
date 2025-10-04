@@ -1,11 +1,13 @@
 import Clibsodium
-import XCTest
+import Testing
+import Foundation
 
 @testable import SwiftNcal
 
-class CryptoShortHashTests: XCTestCase {
+@Suite("Crypto Short Hash Tests") struct CryptoShortHashTests {
     let sodium = Sodium()
 
+    @Test("siphash24 returns hash with expected length")
     func testSiphash24() throws {
         let cryptoShortHash = sodium.cryptoShortHash
         
@@ -14,18 +16,20 @@ class CryptoShortHashTests: XCTestCase {
 
         let hash = try cryptoShortHash.siphash24(data: message, key: key)
 
-        XCTAssertEqual(hash.count, cryptoShortHash.bytes, "Hash length mismatch")
+        #expect(hash.count == cryptoShortHash.bytes, "Hash length mismatch")
     }
 
+    @Test("siphash24 throws for invalid key length")
     func testSiphash24WithInvalidKey() throws {
         let cryptoShortHash = sodium.cryptoShortHash
         
         let message = "Hello, World!".data(using: .utf8)!
         let key = Data(repeating: 0, count: cryptoShortHash.keyBytes - 1) // Invalid key length
 
-        XCTAssertThrowsError(try cryptoShortHash.siphash24(data: message, key: key), "Expected error for invalid key length")
+        #expect(throws: Error.self, "Expected error for invalid key length") { try cryptoShortHash.siphash24(data: message, key: key) }
     }
 
+    @Test("siphashx24 returns hash with expected length")
     func testSiphashx24() throws {
         let cryptoShortHash = sodium.cryptoShortHash
         
@@ -34,15 +38,16 @@ class CryptoShortHashTests: XCTestCase {
 
         let hash = try cryptoShortHash.siphashx24(data: message, key: key)
 
-        XCTAssertEqual(hash.count, cryptoShortHash.xKeyBytes, "Hash length mismatch")
+        #expect(hash.count == cryptoShortHash.xKeyBytes, "Hash length mismatch")
     }
 
+    @Test("siphashx24 throws for invalid key length")
     func testSiphashx24WithInvalidKey() throws {
         let cryptoShortHash = sodium.cryptoShortHash
         
         let message = "Hello, World!".data(using: .utf8)!
         let key = Data(repeating: 0, count: cryptoShortHash.xKeyBytes - 1) // Invalid key length
 
-        XCTAssertThrowsError(try cryptoShortHash.siphashx24(data: message, key: key), "Expected error for invalid key length")
+        #expect(throws: Error.self, "Expected error for invalid key length") { try cryptoShortHash.siphashx24(data: message, key: key) }
     }
 }
