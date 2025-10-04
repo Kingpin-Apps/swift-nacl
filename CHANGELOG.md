@@ -1,3 +1,9 @@
+## 0.2.1 (2025-10-04)
+
+### Fix
+
+- migrate Tests to Swift Testing and use artifact bundle
+
 ## 0.2.0 (2025-09-24)
 
 ### Feat
