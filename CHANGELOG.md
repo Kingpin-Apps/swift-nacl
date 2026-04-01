@@ -1,3 +1,9 @@
+## 0.2.2 (2026-04-01)
+
+### Fix
+
+- rename C folders for safer namespacing
+
 ## 0.2.1 (2025-10-04)
 
 ### Fix
