@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -10,10 +10,13 @@ let clibsodiumTarget: Target
     clibsodiumTarget = .binaryTarget(
         name: "Clibsodium",
         path: "Clibsodium.xcframework")
+#elseif os(Linux)
+    // Use bundled artifact bundle for Linux (staticLibrary support requires Swift 6.2+, SE-0435)
+    clibsodiumTarget = .binaryTarget(
+        name: "Clibsodium",
+        path: "Clibsodium.artifactbundle")
 #else
-    // Use system library for Linux and other platforms.
-    // The artifact bundle (staticLibrary type) requires Swift 6.2+ (SE-0435);
-    // for Swift 6.2+, SwiftPM picks Package@swift-6.2.swift instead.
+    // Fallback to system library for other platforms
     clibsodiumTarget = .systemLibrary(
         name: "Clibsodium",
         path: "Clibsodium",
