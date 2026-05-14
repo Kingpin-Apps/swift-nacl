@@ -90,7 +90,7 @@ struct VerifyKeyTests {
     func testVerifyKeyToCurve25519PublicKey() async throws {
         let keypair = try sodium.cryptoSign.keypair()
         let verifyKey = try VerifyKey(key: keypair.publicKey)
-        let curve25519PublicKey = try verifyKey.toCurve25519PublicKey()
+        let _ = try verifyKey.toCurve25519PublicKey()
     }
 }
 

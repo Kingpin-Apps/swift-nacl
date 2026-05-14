@@ -8,7 +8,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>tvos-arm64</string>
 			<key>LibraryPath</key>
@@ -24,7 +24,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>xros-arm64-simulator</string>
 			<key>LibraryPath</key>
@@ -42,7 +42,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>tvos-arm64_x86_64-simulator</string>
 			<key>LibraryPath</key>
@@ -61,7 +61,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>watchos-arm64_arm64_32_armv7k</string>
 			<key>LibraryPath</key>
@@ -79,7 +79,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>watchos-arm64_i386_x86_64-simulator</string>
 			<key>LibraryPath</key>
@@ -99,7 +99,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>ios-arm64_x86_64-maccatalyst</string>
 			<key>LibraryPath</key>
@@ -118,7 +118,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>macos-arm64_x86_64</string>
 			<key>LibraryPath</key>
@@ -135,7 +135,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>ios-arm64_armv7_armv7s</string>
 			<key>LibraryPath</key>
@@ -153,7 +153,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>xros-arm64</string>
 			<key>LibraryPath</key>
@@ -169,7 +169,7 @@
 			<key>BinaryPath</key>
 			<string>libsodium.a</string>
 			<key>HeadersPath</key>
-			<string>Clibsodium</string>
+			<string>Headers</string>
 			<key>LibraryIdentifier</key>
 			<string>ios-arm64_i386_x86_64-simulator</string>
 			<key>LibraryPath</key>
