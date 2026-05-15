@@ -1,3 +1,10 @@
+## 0.2.3 (2026-05-14)
+
+### Fix
+
+- use version-specific manifest for Linux artifact bundle (Swift 6.2+)
+- improve swift version compatibility
+
 ## 0.2.2 (2026-04-01)
 
 ### Fix
