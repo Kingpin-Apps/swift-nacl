@@ -2,21 +2,25 @@
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FKingpin-Apps%2Fswift-ncal%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/Kingpin-Apps/swift-ncal)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FKingpin-Apps%2Fswift-ncal%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/Kingpin-Apps/swift-ncal)
 
-# Swift-NaCL - Swift binding to the libsodium library
+# Swift-NaCL - Swift binding to libsodium (Cardano fork)
 
-Swift-NaCL is a Swift binding to a fork of [libsodium](https://github.com/IntersectMBO/libsodium) library. These libraries have a stated goal of
-improving usability, security and speed.
+Swift-NaCL is a Swift binding to **[IntersectMBO/libsodium](https://github.com/IntersectMBO/libsodium)** — a Cardano-maintained fork of [jedisct1/libsodium](https://github.com/jedisct1/libsodium) that adds **Verifiable Random Function (VRF, draft-irtf-cfrg-vrf-03)** primitives required by the Cardano protocol. This fork is **not API-compatible with vanilla libsodium** for VRF features — distribution-installed packages (`apt install libsodium-dev`, Homebrew `libsodium`, etc.) lack the `crypto_vrf_ietfdraft03_*` symbols. Apple platforms get the fork via the bundled `Clibsodium.xcframework`; Linux gets it via a static-library artifact bundle (Swift 6.2+) or vendored source (Swift 6.0/6.1).
 
-This package provides a modern, idiomatic Swift interface to the libsodium cryptographic library, offering state-of-the-art cryptographic primitives for secure communication, data integrity, and authentication.
+This package provides a modern, idiomatic Swift interface to the cryptographic primitives, offering state-of-the-art crypto for secure communication, data integrity, authentication, and VRF.
 
 ## Platform Support
 
-- **iOS** 13.0+
-- **macOS** 10.15+
-- **tvOS** 13.0+
-- **watchOS** 6.0+
-- **visionOS** 1.0+
-- **Linux** (Ubuntu 18.04+, with system libsodium or bundled binaries)
+| Platform | Minimum version | libsodium source |
+|---|---|---|
+| iOS | 13.0 | bundled `Clibsodium.xcframework` |
+| macOS | 10.15 | bundled `Clibsodium.xcframework` |
+| tvOS | 13.0 | bundled `Clibsodium.xcframework` |
+| watchOS | 6.0 | bundled `Clibsodium.xcframework` |
+| visionOS | 1.0 | bundled `Clibsodium.xcframework` |
+| Linux (Swift 6.2+) | x86_64, aarch64 | bundled `Clibsodium.artifactbundle` (SE-0435 staticLibrary) |
+| Linux (Swift 6.0/6.1) | x86_64, aarch64 | vendored C source at `ClibsodiumLinuxSource/` |
+
+There is no need to install libsodium via your system package manager. In fact, **doing so will not work** for any code path using VRF (`crypto_vrf_*`) — system libsodium is the upstream jedisct1 build, which does not contain those symbols.
 
 ## Installation
 
@@ -289,31 +293,28 @@ let verifiedOutput = try keyPair.verifyingKey.verify(message: message, proof: pr
 assert(directOutput == verifiedOutput)
 ```
 
-### Environment Configuration
-
-For Linux builds, you can control libsodium usage:
-
-```bash
-# Use system libsodium
-export SWIFT_NCAL_USE_SYSTEM_LIBSODIUM=1
-swift build
-```
-
 ## Dependencies
 
-- [libsodium](https://github.com/IntersectMBO/libsodium) - Core cryptographic library
-- [Base32](https://github.com/norio-nomura/Base32.git) - Base32 encoding support
-- [BigInt](https://github.com/attaswift/BigInt.git) - Large integer arithmetic
+- **[IntersectMBO/libsodium](https://github.com/IntersectMBO/libsodium)** — Cardano fork of libsodium with VRF. Embedded in this package; no separate install needed.
+- [Base32](https://github.com/norio-nomura/Base32.git) — Base32 encoding support
+- [BigInt](https://github.com/attaswift/BigInt.git) — Large integer arithmetic
 
 ## Platform-specific Notes
 
 ### Apple Platforms
-Uses precompiled libsodium framework (Clibsodium.xcframework) for optimal performance.
+
+The Cardano libsodium fork ships as a precompiled `Clibsodium.xcframework` covering iOS, macOS, tvOS, watchOS, visionOS (device + simulator slices, arm64 + x86_64 where applicable). Nothing to install — `swift build` against any Apple platform Just Works.
 
 ### Linux
-- **Default**: Uses bundled libsodium binaries for x86_64 and arm64
-- **System**: Set `SWIFT_NCAL_USE_SYSTEM_LIBSODIUM=1` to use system libsodium
-- **Package managers**: Supports apt, yum, and brew for libsodium installation
+
+The Cardano libsodium fork is delivered two different ways depending on Swift toolchain version, because the SwiftPM mechanism for shipping Linux static libraries differs across versions:
+
+- **Swift 6.2+** — uses `Clibsodium.artifactbundle/`, a `staticLibrary` artifact bundle ([SE-0435](https://github.com/apple/swift-evolution/blob/main/proposals/0435-swiftpm-static-library-binary-targets.md)) containing prebuilt `libsodium.a` for `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Auto-selected via `Package@swift-6.2.swift`.
+- **Swift 6.0 / 6.1** — compiles the fork from source vendored at `ClibsodiumLinuxSource/`. Slightly slower first build (~30s) but works on any Linux that has a C compiler. Selected via the default `Package.swift`.
+
+The pinned upstream commit is recorded in `ClibsodiumLinuxSource/UPSTREAM_COMMIT`. To refresh, run `scripts/sync-libsodium-source.sh` (re-syncs source + regenerates `version.h`).
+
+**Do not** install vanilla libsodium via `apt`, `yum`, or `brew` — it will be silently ignored on Linux, and on Apple platforms the bundled xcframework takes precedence. If you've previously installed it for swift-ncal, you can safely uninstall it.
 
 ## Testing
 
