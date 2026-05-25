@@ -1,3 +1,13 @@
+## 0.3.0 (2026-05-25)
+
+### Feat
+
+- vendor IntersectMBO/libsodium source for Linux pre-Swift 6.2
+
+### Refactor
+
+- drop Package@swift-6.2.swift + Clibsodium.artifactbundle, use vendored source on all non-Apple
+
 ## 0.2.3 (2026-05-14)
 
 ### Fix
