@@ -4,7 +4,7 @@
 
 # Swift-NaCL - Swift binding to libsodium (Cardano fork)
 
-Swift-NaCL is a Swift binding to **[IntersectMBO/libsodium](https://github.com/IntersectMBO/libsodium)** — a Cardano-maintained fork of [jedisct1/libsodium](https://github.com/jedisct1/libsodium) that adds **Verifiable Random Function (VRF, draft-irtf-cfrg-vrf-03)** primitives required by the Cardano protocol. This fork is **not API-compatible with vanilla libsodium** for VRF features — distribution-installed packages (`apt install libsodium-dev`, Homebrew `libsodium`, etc.) lack the `crypto_vrf_ietfdraft03_*` symbols. Apple platforms get the fork via the bundled `Clibsodium.xcframework`; Linux gets it via a static-library artifact bundle (Swift 6.2+) or vendored source (Swift 6.0/6.1).
+Swift-NaCL is a Swift binding to **[IntersectMBO/libsodium](https://github.com/IntersectMBO/libsodium)** — a Cardano-maintained fork of [jedisct1/libsodium](https://github.com/jedisct1/libsodium) that adds **Verifiable Random Function (VRF, draft-irtf-cfrg-vrf-03)** primitives required by the Cardano protocol. This fork is **not API-compatible with vanilla libsodium** for VRF features — distribution-installed packages (`apt install libsodium-dev`, Homebrew `libsodium`, etc.) lack the `crypto_vrf_ietfdraft03_*` symbols. Apple platforms get the fork via the bundled `Clibsodium.xcframework`; everywhere else compiles it from vendored source at `ClibsodiumLinuxSource/`.
 
 This package provides a modern, idiomatic Swift interface to the cryptographic primitives, offering state-of-the-art crypto for secure communication, data integrity, authentication, and VRF.
 
@@ -17,10 +17,12 @@ This package provides a modern, idiomatic Swift interface to the cryptographic p
 | tvOS | 13.0 | bundled `Clibsodium.xcframework` |
 | watchOS | 6.0 | bundled `Clibsodium.xcframework` |
 | visionOS | 1.0 | bundled `Clibsodium.xcframework` |
-| Linux (Swift 6.2+) | x86_64, aarch64 | bundled `Clibsodium.artifactbundle` (SE-0435 staticLibrary) |
-| Linux (Swift 6.0/6.1) | x86_64, aarch64 | vendored C source at `ClibsodiumLinuxSource/` |
+| Linux | x86_64, aarch64 | vendored C source at `ClibsodiumLinuxSource/` |
+| Android | x86_64, aarch64 | vendored C source at `ClibsodiumLinuxSource/` |
 
 There is no need to install libsodium via your system package manager. In fact, **doing so will not work** for any code path using VRF (`crypto_vrf_*`) — system libsodium is the upstream jedisct1 build, which does not contain those symbols.
+
+**WASI / Wasm** is not currently supported. The libsodium source relies on POSIX features (pthread, mmap, signal.h) that WASI doesn't provide; supporting Wasm would require a substantial set of `.when(platforms: [.wasi])` conditional defines plus upstream Cfyaml fixes elsewhere in the Cardano Swift stack.
 
 ## Installation
 
@@ -305,16 +307,19 @@ assert(directOutput == verifiedOutput)
 
 The Cardano libsodium fork ships as a precompiled `Clibsodium.xcframework` covering iOS, macOS, tvOS, watchOS, visionOS (device + simulator slices, arm64 + x86_64 where applicable). Nothing to install — `swift build` against any Apple platform Just Works.
 
-### Linux
+### Linux & Android
 
-The Cardano libsodium fork is delivered two different ways depending on Swift toolchain version, because the SwiftPM mechanism for shipping Linux static libraries differs across versions:
+The Cardano libsodium fork is compiled from vendored C source at `ClibsodiumLinuxSource/`. First build is ~10–30s depending on toolchain; subsequent builds reuse the cached objects. Works on any Linux or Android system with a C compiler — no apt/yum/brew install needed.
 
-- **Swift 6.2+** — uses `Clibsodium.artifactbundle/`, a `staticLibrary` artifact bundle ([SE-0435](https://github.com/apple/swift-evolution/blob/main/proposals/0435-swiftpm-static-library-binary-targets.md)) containing prebuilt `libsodium.a` for `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Auto-selected via `Package@swift-6.2.swift`.
-- **Swift 6.0 / 6.1** — compiles the fork from source vendored at `ClibsodiumLinuxSource/`. Slightly slower first build (~30s) but works on any Linux that has a C compiler. Selected via the default `Package.swift`.
+The pinned upstream commit is recorded in `ClibsodiumLinuxSource/UPSTREAM_COMMIT`. To refresh from a newer `IntersectMBO/libsodium` checkout, run `scripts/sync-libsodium-source.sh` (re-syncs source + regenerates `version.h`).
 
-The pinned upstream commit is recorded in `ClibsodiumLinuxSource/UPSTREAM_COMMIT`. To refresh, run `scripts/sync-libsodium-source.sh` (re-syncs source + regenerates `version.h`).
+CPU-specific SIMD variants (AVX2, SSE4.1, SSSE3, AVX-512F) are intentionally excluded from the build because SwiftPM doesn't expose per-source-file compile flags. Runtime CPU dispatch in `sodium/runtime.c` falls back cleanly to the portable ref paths.
 
-**Do not** install vanilla libsodium via `apt`, `yum`, or `brew` — it will be silently ignored on Linux, and on Apple platforms the bundled xcframework takes precedence. If you've previously installed it for swift-ncal, you can safely uninstall it.
+**Do not** install vanilla libsodium via `apt`, `yum`, or `brew` — on Linux/Android it will be silently ignored, and on Apple platforms the bundled xcframework takes precedence. If you've previously installed it for swift-ncal, you can safely uninstall it.
+
+### WASI / Wasm
+
+Not currently supported. The libsodium source relies on POSIX features absent from WASI (pthread, mmap, signal.h, sys/mman.h, mlock/munlock). Supporting Wasm would need a substantial set of `.when(platforms: [.wasi])` conditional `cSettings` excluding `HAVE_PTHREAD`, `HAVE_SYS_MMAN_H`, `HAVE_MLOCK`, `HAVE_MADVISE`, `HAVE_MPROTECT`, plus likely `-D_WASI_EMULATED_*` flags and linker emulation libs. Tracked as future work.
 
 ## Testing
 

@@ -45,6 +45,12 @@ let clibsodiumTarget: Target
             .headerSearchPath("include"),
             .headerSearchPath("include/sodium"),
             // Match what ./configure --disable-asm --disable-pie would produce.
+            //
+            // Most defines are universally safe on any POSIX-ish target;
+            // HAVE_EXPLICIT_BZERO is glibc-only (Android NDK's bionic and
+            // WASI's wasi-libc both lack it — libsodium has a memset_s /
+            // OPENSSL_cleanse-style fallback in sodium/utils.c when the
+            // define is absent).
             .define("CONFIGURED", to: "1"),
             .define("_GNU_SOURCE", to: "1"),
             .define("HAVE_C_VARARRAYS", to: "1"),
@@ -61,7 +67,7 @@ let clibsodiumTarget: Target
             .define("HAVE_NANOSLEEP", to: "1"),
             .define("HAVE_POSIX_MEMALIGN", to: "1"),
             .define("HAVE_GETENTROPY", to: "1"),
-            .define("HAVE_EXPLICIT_BZERO", to: "1"),
+            .define("HAVE_EXPLICIT_BZERO", to: "1", .when(platforms: [.linux])),
             .define("HAVE_PTHREAD", to: "1"),
             .define("HAVE_CATCHABLE_SEGV", to: "1"),
             .define("HAVE_CATCHABLE_ABRT", to: "1"),
