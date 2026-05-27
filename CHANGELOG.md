@@ -1,3 +1,9 @@
+## 0.3.1 (2026-05-27)
+
+### Fix
+
+- improve wasm compatibility
+
 ## 0.3.0 (2026-05-25)
 
 ### Feat
