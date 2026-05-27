@@ -53,7 +53,12 @@ let clibsodiumTarget: Target
             .define("HAVE_SYS_RANDOM_H", to: "1"),
             .define("HAVE_NANOSLEEP", to: "1"),
             .define("HAVE_POSIX_MEMALIGN", to: "1"),
-            .define("HAVE_GETENTROPY", to: "1"),
+            // Android bionic only added getentropy() at API 28; gating here
+            // matches the runtime weak-symbol check (`&getentropy == NULL`)
+            // in randombytes/internal/randombytes_internal_random.c.
+            // Apple platforms use the binary xcframework, so listing them
+            // here is cosmetic but documents the intended scope.
+            .define("HAVE_GETENTROPY", to: "1", .when(platforms: [.linux, .macOS, .iOS, .tvOS, .watchOS, .visionOS])),
             .define("DEV_MODE", to: "1"),
             // glibc-only — Android NDK's bionic and WASI's wasi-libc lack it
             // (libsodium falls back to a memset_s / OPENSSL_cleanse path).
