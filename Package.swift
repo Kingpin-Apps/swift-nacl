@@ -1,11 +1,9 @@
 // swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 //
-// This manifest is used for Swift 6.0 and 6.1. Swift 6.2+ uses
-// Package@swift-6.2.swift, which delivers libsodium via a SE-0435 staticLibrary
-// artifact bundle (Clibsodium.artifactbundle). Pre-6.2 SwiftPM doesn't understand
-// that bundle type, so we instead compile IntersectMBO/libsodium from source
-// vendored at ClibsodiumLinuxSource/.
+// On Apple platforms we ship a precompiled Clibsodium.xcframework with the
+// Cardano libsodium fork. On Linux, Android, and WASI we compile
+// IntersectMBO/libsodium from source vendored at ClibsodiumLinuxSource/.
 
 import PackageDescription
 import Foundation
@@ -17,7 +15,7 @@ let clibsodiumTarget: Target
         name: "Clibsodium",
         path: "Clibsodium.xcframework")
 #else
-    // Linux / other: compile IntersectMBO/libsodium from vendored source.
+    // Linux / Android / WASI: compile IntersectMBO/libsodium from vendored source.
     // The upstream commit is recorded in ClibsodiumLinuxSource/UPSTREAM_COMMIT;
     // refresh via scripts/sync-libsodium-source.sh.
     //
@@ -46,32 +44,41 @@ let clibsodiumTarget: Target
             .headerSearchPath("include/sodium"),
             // Match what ./configure --disable-asm --disable-pie would produce.
             //
-            // Most defines are universally safe on any POSIX-ish target;
-            // HAVE_EXPLICIT_BZERO is glibc-only (Android NDK's bionic and
-            // WASI's wasi-libc both lack it — libsodium has a memset_s /
-            // OPENSSL_cleanse-style fallback in sodium/utils.c when the
-            // define is absent).
+            // Universally safe defines (C99 / standard wasi-libc + bionic + glibc):
             .define("CONFIGURED", to: "1"),
             .define("_GNU_SOURCE", to: "1"),
             .define("HAVE_C_VARARRAYS", to: "1"),
             .define("HAVE_ATOMIC_OPS", to: "1"),
             .define("HAVE_TI_MODE", to: "1"),
-            .define("HAVE_INLINE_ASM", to: "1"),
-            .define("HAVE_SYS_MMAN_H", to: "1"),
             .define("HAVE_SYS_RANDOM_H", to: "1"),
-            .define("HAVE_GETPID", to: "1"),
-            .define("HAVE_MMAP", to: "1"),
-            .define("HAVE_MLOCK", to: "1"),
-            .define("HAVE_MADVISE", to: "1"),
-            .define("HAVE_MPROTECT", to: "1"),
             .define("HAVE_NANOSLEEP", to: "1"),
             .define("HAVE_POSIX_MEMALIGN", to: "1"),
             .define("HAVE_GETENTROPY", to: "1"),
-            .define("HAVE_EXPLICIT_BZERO", to: "1", .when(platforms: [.linux])),
-            .define("HAVE_PTHREAD", to: "1"),
-            .define("HAVE_CATCHABLE_SEGV", to: "1"),
-            .define("HAVE_CATCHABLE_ABRT", to: "1"),
             .define("DEV_MODE", to: "1"),
+            // glibc-only — Android NDK's bionic and WASI's wasi-libc lack it
+            // (libsodium falls back to a memset_s / OPENSSL_cleanse path).
+            .define("HAVE_EXPLICIT_BZERO", to: "1", .when(platforms: [.linux])),
+            // POSIX-y features present on Linux/Android but absent on WASI.
+            // sys/mman.h and signal.h both #error on WASI without the
+            // emulation flags below.
+            .define("HAVE_INLINE_ASM", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_SYS_MMAN_H", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_MMAP", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_MLOCK", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_MADVISE", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_MPROTECT", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_GETPID", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_PTHREAD", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_CATCHABLE_SEGV", to: "1", .when(platforms: [.linux, .android])),
+            .define("HAVE_CATCHABLE_ABRT", to: "1", .when(platforms: [.linux, .android])),
+            // WASI: sodium/utils.c unconditionally `#include <signal.h>`, and
+            // wasi-libc's signal.h `#error`s without _WASI_EMULATED_SIGNAL.
+            // Consumers also need `-lwasi-emulated-signal` at link time —
+            // see linkerSettings below.
+            .define("_WASI_EMULATED_SIGNAL", to: "1", .when(platforms: [.wasi])),
+        ],
+        linkerSettings: [
+            .linkedLibrary("wasi-emulated-signal", .when(platforms: [.wasi])),
         ])
 #endif
 
