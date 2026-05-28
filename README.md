@@ -34,7 +34,7 @@ To add Swift-NaCL as dependency to your Xcode project, select `File` > `Swift Pa
 https://github.com/Kingpin-Apps/swift-ncal.git
 ```
 
-Import both `SwiftNcal` and `Clibsodium` in your project.
+Import both `SwiftNaCl` and `Clibsodium` in your project.
 
 ### Package.swift
 
@@ -48,7 +48,7 @@ targets: [
     .target(
         name: "YourTarget",
         dependencies: [
-            .product(name: "SwiftNcal", package: "swift-ncal")
+            .product(name: "SwiftNaCl", package: "swift-ncal")
         ]
     )
 ]
@@ -59,7 +59,7 @@ targets: [
 In your Swift files, import the library:
 
 ```swift
-import SwiftNcal
+import SwiftNaCl
 ```
 
 ## Key Features
@@ -79,7 +79,7 @@ import SwiftNcal
 ### Digital Signatures (Ed25519)
 
 ```swift
-import SwiftNcal
+import SwiftNaCl
 
 // Generate a signing key
 let signingKey = try SigningKey.generate()
@@ -97,7 +97,7 @@ print(String(data: verifiedMessage, encoding: .utf8)!) // "Hello, World!"
 ### Secret-key Encryption (XSalsa20-Poly1305)
 
 ```swift
-import SwiftNcal
+import SwiftNaCl
 
 // Generate a random key
 let key = random(size: 32)
@@ -115,7 +115,7 @@ print(String(data: decrypted, encoding: .utf8)!) // "Secret message"
 ### Public-key Encryption (Curve25519)
 
 ```swift
-import SwiftNcal
+import SwiftNaCl
 
 // Generate key pairs
 let aliceKeyPair = KeyPair.generate()
@@ -135,7 +135,7 @@ print(String(data: decrypted, encoding: .utf8)!) // "Hello Bob!"
 ### Cryptographic Hashing
 
 ```swift
-import SwiftNcal
+import SwiftNaCl
 
 let hash = Hash()
 let message = "Hello, World!".data(using: .utf8)!
@@ -157,7 +157,7 @@ let blake2bHash = try hash.blake2b(
 ### Verifiable Random Functions (VRF)
 
 ```swift
-import SwiftNcal
+import SwiftNaCl
 
 // Generate a VRF key pair
 let keyPair = VRFKeyPair.generate()

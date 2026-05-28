@@ -88,15 +88,15 @@ let clibsodiumTarget: Target
 #endif
 
 let package = Package(
-    name: "SwiftNcal",
+    name: "SwiftNaCl",
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "Clibsodium",
             targets: ["Clibsodium"]),
         .library(
-            name: "SwiftNcal",
-            targets: ["SwiftNcal"]),
+            name: "SwiftNaCl",
+            targets: ["SwiftNaCl"]),
     ],
     dependencies: [
         .package(url: "https://github.com/norio-nomura/Base32.git", from: "0.9.0"),
@@ -107,13 +107,13 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         clibsodiumTarget,
         .target(
-            name: "SwiftNcal",
+            name: "SwiftNaCl",
             dependencies: ["Clibsodium", "Base32", "BigInt"],
             exclude: ["libsodium", "Info.plist"]
         ),
         .testTarget(
-            name: "SwiftNcalTests",
-            dependencies: ["SwiftNcal"],
+            name: "SwiftNaClTests",
+            dependencies: ["SwiftNaCl"],
             exclude: ["Info.plist"],
             resources: [
                .copy("data")

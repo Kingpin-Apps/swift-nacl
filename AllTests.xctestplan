@@ -15,8 +15,8 @@
     {
       "target" : {
         "containerPath" : "container:",
-        "identifier" : "SwiftNcalTests",
-        "name" : "SwiftNcalTests"
+        "identifier" : "SwiftNaClTests",
+        "name" : "SwiftNaClTests"
       }
     }
   ],
