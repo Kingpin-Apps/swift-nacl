@@ -1,3 +1,9 @@
+## 1.0.0 (2026-05-27)
+
+### Feat
+
+- rename SwiftNcal module to SwiftNaCl
+
 ## 0.3.2 (2026-05-27)
 
 ### Fix
