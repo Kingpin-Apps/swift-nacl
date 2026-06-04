@@ -75,7 +75,7 @@ public class VerifyKey: Equatable, Hashable {
         var signed: Data
         if let signature = signature {
             try ensure(
-                signature.count != sodium.cryptoSign.bytes,
+                signature.count == sodium.cryptoSign.bytes,
                 raising: .valueError("Verification signature must be created from \(sodium.cryptoSign.bytes) bytes")
             )
             signed = signature + encoder.decode(data: smessage)

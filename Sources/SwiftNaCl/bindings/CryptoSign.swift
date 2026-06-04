@@ -334,7 +334,7 @@ public struct CryptoSign {
                 }
             }
         }
-        try ensure(rc != 0, raising: .badSignatureError("Signature was forged or corrupt"))
+        try ensure(rc == 0, raising: .badSignatureError("Signature was forged or corrupt"))
         
         return true
     }

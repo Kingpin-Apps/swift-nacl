@@ -86,6 +86,33 @@ struct VerifyKeyTests {
         }
     }
 
+    @Test("verify accepts a valid detached signature and returns the message")
+    func testVerifyKeyVerifyDetachedSignatureValid() async throws {
+        let signingKey = try SigningKey.generate()
+        let message = "The quick brown fox jumps over the lazy dog".data(using: .utf8)!
+        let signed = try signingKey.sign(message: message)
+
+        let recovered = try signingKey.verifyKey.verify(
+            smessage: message,
+            signature: signed.getSignature
+        )
+        #expect(recovered == message, "Detached verify did not return the original message")
+    }
+
+    @Test("verify throws for 63-byte detached signature")
+    func testVerifyKeyVerifyDetachedSignatureTooShort() async throws {
+        let signingKey = try SigningKey.generate()
+        let message = "The quick brown fox jumps over the lazy dog".data(using: .utf8)!
+        let shortSignature = Data(repeating: 0, count: sodium.cryptoSign.bytes - 1)
+
+        #expect(throws: SodiumError.self) {
+            _ = try signingKey.verifyKey.verify(
+                smessage: message,
+                signature: shortSignature
+            )
+        }
+    }
+
     @Test("converts to Curve25519 public key")
     func testVerifyKeyToCurve25519PublicKey() async throws {
         let keypair = try sodium.cryptoSign.keypair()

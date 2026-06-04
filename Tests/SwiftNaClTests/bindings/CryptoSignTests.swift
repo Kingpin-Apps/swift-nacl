@@ -75,14 +75,15 @@ struct CryptoSignTests {
     func ed25519ph() async throws {
         let keypair = try cryptoSign.keypair()
         let message = "Prehashed test message".data(using: .utf8)!
-        
-        let edph = try CryptoSignEd25519phState()
-        try cryptoSign.ed25519phUpdate(edph: edph, pmsg: message)
-        
-        let signature = try cryptoSign.ed25519phFinalCreate(edph: edph, sk: keypair.secretKey)
+
+        let edphSign = try CryptoSignEd25519phState()
+        try cryptoSign.ed25519phUpdate(edph: edphSign, pmsg: message)
+        let signature = try cryptoSign.ed25519phFinalCreate(edph: edphSign, sk: keypair.secretKey)
         #expect(signature.count == cryptoSign.bytes, "Signature length mismatch")
-        
-        let isValid = try cryptoSign.ed25519phFinalVerify(edph: edph, signature: signature, pk: keypair.publicKey)
+
+        let edphVerify = try CryptoSignEd25519phState()
+        try cryptoSign.ed25519phUpdate(edph: edphVerify, pmsg: message)
+        let isValid = try cryptoSign.ed25519phFinalVerify(edph: edphVerify, signature: signature, pk: keypair.publicKey)
         #expect(isValid, "Signature verification failed")
     }
 }
