@@ -1,3 +1,9 @@
+## 1.0.2 (2026-06-04)
+
+### Fix
+
+- invert signature verification length and rc checks
+
 ## 1.0.1 (2026-05-28)
 
 ### Fix
