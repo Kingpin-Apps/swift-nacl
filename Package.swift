@@ -100,7 +100,9 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/norio-nomura/Base32.git", from: "0.9.0"),
-        .package(url: "https://github.com/attaswift/BigInt.git", from: "5.7.0"),
+        // BigInt 6.x is source-compatible with 5.7.0; the major bump only raised the
+        // manifest's tools version. Keep 5.x admissible for consumers still on it.
+        .package(url: "https://github.com/attaswift/BigInt.git", "5.7.0"..<"7.0.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
