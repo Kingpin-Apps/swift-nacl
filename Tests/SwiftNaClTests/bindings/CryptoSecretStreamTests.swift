@@ -25,6 +25,18 @@ import Foundation
         try cryptoSecretStream.xchacha20poly1305InitPull(state: statePull, header: header, key: key)
     }
 
+    @Test("pull throws for chunks shorter than ABYTES", arguments: [0, 5, 16])
+    func testPullRejectsShortChunk(length: Int) throws {
+        let key = cryptoSecretStream.xchacha20poly1305Keygen()
+        let statePush = CryptoSecretstreamXchacha20poly1305State()
+        let statePull = CryptoSecretstreamXchacha20poly1305State()
+        let header = try cryptoSecretStream.xchacha20poly1305InitPush(state: statePush, key: key)
+        try cryptoSecretStream.xchacha20poly1305InitPull(state: statePull, header: header, key: key)
+        #expect(throws: SodiumError.self) {
+            _ = try cryptoSecretStream.xchacha20poly1305Pull(state: statePull, ciphertext: Data(count: length))
+        }
+    }
+
     @Test("push/pull roundtrip yields original message and tag")
     func testPushAndPull() throws {
         let key = cryptoSecretStream.xchacha20poly1305Keygen()

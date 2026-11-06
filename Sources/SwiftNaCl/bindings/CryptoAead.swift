@@ -143,6 +143,11 @@ public struct CryptoAead {
             raising: .typeError(
                 "Key must be a \(chacha20poly1305IetfKeyBytes) bytes long bytes sequence"))
 
+        try ensure(
+            clen >= chacha20poly1305IetfABytes,
+            raising: .valueError(
+                "Ciphertext must be at least \(chacha20poly1305IetfABytes) bytes long"))
+
         let mxout = clen - chacha20poly1305IetfABytes
 
         var mlen = UInt64(0)
@@ -291,6 +296,11 @@ public struct CryptoAead {
             raising: .typeError(
                 "Key must be a \(chacha20poly1305KeyBytes) bytes long bytes sequence"))
 
+        try ensure(
+            clen >= chacha20poly1305ABytes,
+            raising: .valueError(
+                "Ciphertext must be at least \(chacha20poly1305ABytes) bytes long"))
+
         let mxout = clen - chacha20poly1305ABytes
 
         var mlen = UInt64(0)
@@ -438,6 +448,11 @@ public struct CryptoAead {
             key.count == xchacha20poly1305IetfKeyBytes,
             raising: .typeError(
                 "Key must be a \(xchacha20poly1305IetfKeyBytes) bytes long bytes sequence"))
+
+        try ensure(
+            clen >= xchacha20poly1305IetfABytes,
+            raising: .valueError(
+                "Ciphertext must be at least \(xchacha20poly1305IetfABytes) bytes long"))
 
         let mxout = clen - xchacha20poly1305IetfABytes
 

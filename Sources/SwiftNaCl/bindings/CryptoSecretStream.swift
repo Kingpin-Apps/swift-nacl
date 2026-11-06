@@ -160,6 +160,9 @@ public struct CryptoSecretStream {
      - Throws: `CryptoError.decryptionFailed` if decryption fails.
      */
     public func xchacha20poly1305Pull(state: CryptoSecretstreamXchacha20poly1305State, ciphertext: Data, additionalData: Data? = nil) throws -> (Data, Int) {
+        try ensure(
+            ciphertext.count >= xchacha20poly1305Abytes,
+            raising: .valueError("Ciphertext must be at least \(xchacha20poly1305Abytes) bytes long"))
         let mlen = ciphertext.count - xchacha20poly1305Abytes
         if state.rawbuf == nil || state.rawbuf!.count < mlen {
             state.rawbuf = [UInt8](repeating: 0, count: mlen)
