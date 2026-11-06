@@ -17,6 +17,7 @@ public struct CryptoScalarmult {
     /// - Returns: The 32-byte Curve25519 point `n · B`.
     /// - Throws: A ``SodiumError`` if input is invalid.
     public func base(n: Data) throws -> Data {
+        try ensure(n.count == scalarBytes, raising: .typeError("Input must be a \(scalarBytes) long bytes sequence"))
         var q = [UInt8](repeating: 0, count: Int(bytes))
         let result = crypto_scalarmult_base(&q, [UInt8](n))
         try ensure(result == 0, raising: .runtimeError("Unexpected library error"))
@@ -32,6 +33,8 @@ public struct CryptoScalarmult {
     /// - Returns: The 32-byte shared point `n · p`.
     /// - Throws: A ``SodiumError`` if input is invalid.
     public func cryptoScalarmult(n: Data, p: Data) throws -> Data {
+        try ensure(n.count == scalarBytes, raising: .typeError("Input must be a \(scalarBytes) long bytes sequence"))
+        try ensure(p.count == bytes, raising: .typeError("Input must be a \(bytes) long bytes sequence"))
         var q = [UInt8](repeating: 0, count: Int(bytes))
         let result = crypto_scalarmult(&q, [UInt8](n), [UInt8](p))
         try ensure(result == 0, raising: .runtimeError("Unexpected library error"))

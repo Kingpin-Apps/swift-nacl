@@ -106,6 +106,7 @@ public struct CryptoSign {
     /// - Returns: The signature followed by the message.
     /// - Throws: A ``SodiumError`` if the signature could not be created.
     public func sign(message: Data, sk: Data) throws -> Data {
+        try ensure(sk.count == secretKeyBytes, raising: .typeError("Secret key must be \(secretKeyBytes) bytes long"))
         var signed = Data(count: message.count + bytes)
         var signedLen = UInt64(0)
         
@@ -141,6 +142,7 @@ public struct CryptoSign {
     /// - Returns: The message without its signature.
     /// - Throws: A ``SodiumError`` if the signature is forged or corrupt.
     public func open(signed: Data, pk: Data) throws -> Data {
+        try ensure(pk.count == publicKeyBytes, raising: .typeError("Public key must be \(publicKeyBytes) bytes long"))
         var message = Data(count: signed.count)
         var messageLen = UInt64(0)
         
