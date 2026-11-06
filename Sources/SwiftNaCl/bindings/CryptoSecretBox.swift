@@ -211,6 +211,6 @@ public struct CryptoSecretBox {
             
         try ensure(res == 0, raising: .cryptoError("Decryption failed. Ciphertext failed verification"))
 
-        return plaintext
+        return Data(plaintext.prefix(mlen))
     }
 }

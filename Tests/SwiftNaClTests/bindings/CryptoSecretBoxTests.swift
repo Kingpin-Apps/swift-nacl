@@ -195,4 +195,15 @@ struct CryptoSecretBoxTests {
             try cryptoSecretBox.openEasy(ciphertext: ciphertext, nonce: invalidNonce, key: key)
         }
     }
+
+    @Test("Open easy returns an empty plaintext for an empty message")
+    func openEasyEmptyMessage() async throws {
+        let key = Data(repeating: 1, count: cryptoSecretBox.keyBytes)
+        let nonce = Data(repeating: 2, count: cryptoSecretBox.nonceBytes)
+
+        let ciphertext = try cryptoSecretBox.easy(message: Data(), nonce: nonce, key: key)
+        let plaintext = try cryptoSecretBox.openEasy(ciphertext: ciphertext, nonce: nonce, key: key)
+
+        #expect(plaintext.isEmpty)
+    }
 }
