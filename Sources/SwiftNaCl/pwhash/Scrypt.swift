@@ -89,7 +89,12 @@ public struct Scrypt {
     public func kdf(size: Int, password: Data, salt: Data, opsLimit: Int? = nil, memLimit: Int? = nil, encoder: (Data) -> Data = { $0 }) throws -> Data {
         let memLim = memLimit ?? memLimitSensitive
         let opsLim = opsLimit ?? opsLimitSensitive
-        
+
+        try ensure(
+            size >= bytesMin && size <= bytesMax,
+            raising: .valueError("The key size must be between \(bytesMin) and \(bytesMax), not \(size)")
+        )
+
         try ensure(
             salt.count == saltBytes,
             raising:

@@ -1,6 +1,5 @@
 import Clibsodium
 import Foundation
-import BigInt
 
 public struct CryptoPwHash {
     public let saltBytes = Int(crypto_pwhash_saltbytes())
@@ -87,31 +86,24 @@ public struct CryptoPwHash {
     private func checkMemoryOccupation(n: Int, r: Int, p: Int, maxmem: Int? = nil) throws {
         let maxMem = maxmem ?? scryptMaxMem
 
-        try ensure(r != 0, raising: .valueError("Invalid block size"))
-        try ensure(p != 0, raising: .valueError("Invalid parallelization factor"))
-        try ensure((n & (n - 1)) == 0, raising: .valueError("Cost factor must be a power of 2"))
+        try ensure(r >= 1, raising: .valueError("Invalid block size"))
+        try ensure(p >= 1, raising: .valueError("Invalid parallelization factor"))
         try ensure(n > 1, raising: .valueError("Cost factor must be at least 2"))
+        try ensure((n & (n - 1)) == 0, raising: .valueError("Cost factor must be a power of 2"))
         try ensure(p <= scryptPrMax / r, raising: .valueError("p*r is greater than \(scryptPrMax)"))
+        // n is a power of two below 2^63, so it is below 2^(16r) whenever 16r >= 63.
         try ensure(
-            n < (BigInt(1) << (16 * r)),
+            16 * r >= 63 || n < (1 << (16 * r)),
             raising: .valueError("Cost factor is too large")
         )
 
-        let Blen = p * 128 * r
-        let i = UInt64.max / 128
-
-        try ensure(n + 2 <= Int(i) / r, raising: .valueError("Value Error"))
-
-        let Vlen = 32 * r * (n + 2) * 4
-
-        try ensure(
-            Blen <= UInt64.max - UInt64(Vlen),
-            raising: .valueError("Value Error")
-        )
-        try ensure(Blen <= Int.max - Vlen, raising: .valueError("Value Error"))
-        try ensure(
-            Blen + Vlen <= maxMem,
-            raising: .valueError("Memory limit would be exceeded with the chosen n, r, p"))
+        let memoryError = SodiumError.valueError("Memory limit would be exceeded with the chosen n, r, p")
+        let (blockBytes, o1) = (128 * r).multipliedReportingOverflow(by: p)
+        let (nPlus2, o2) = n.addingReportingOverflow(2)
+        let (vBytes, o3) = (128 * r).multipliedReportingOverflow(by: nPlus2)
+        let (total, o4) = blockBytes.addingReportingOverflow(vBytes)
+        try ensure(!(o1 || o2 || o3 || o4), raising: memoryError)
+        try ensure(total <= maxMem, raising: memoryError)
     }
 
     /// Swift implementation of libsodium's pickparams
@@ -175,6 +167,9 @@ public struct CryptoPwHash {
         let maxMem = maxmem ?? scryptMaxMem
 
         try checkMemoryOccupation(n: n, r: r, p: p, maxmem: maxMem)
+        try ensure(
+            dklen >= 1 && dklen <= scryptsalsa208sha256BytesMax,
+            raising: .valueError("dklen must be between 1 and \(scryptsalsa208sha256BytesMax)"))
 
         var buf = Data(count: dklen)
         let ret = buf.withUnsafeMutableBytes { bufPtr in
