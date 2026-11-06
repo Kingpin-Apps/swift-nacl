@@ -14,6 +14,17 @@ struct SecretBoxTests {
         #expect(secretBox.keySize == sodium.cryptoSecretBox.keyBytes, "SecretBox key size mismatch")
     }
 
+    @Test("exposes the libsodium secretbox size constants")
+    func testSecretBoxConstants() async throws {
+        let secretBox = try SecretBox(key: Data(repeating: 0, count: sodium.cryptoSecretBox.keyBytes))
+        #expect(secretBox.keySize == 32)
+        #expect(secretBox.nonceSize == 24)
+        #expect(secretBox.macBytes == 16)
+        #expect(secretBox.macBytes == sodium.cryptoSecretBox.macBytes)
+        #expect(secretBox.messageBytesMax == sodium.cryptoSecretBox.messageBytesMax)
+        #expect(secretBox.messageBytesMax == UInt64(UInt.max) - 16)
+    }
+
     @Test("fails to initialize with invalid key size")
     func testSecretBoxInvalidKeySize() async throws {
         let invalidKey = Data(repeating: 0, count: sodium.cryptoSecretBox.keyBytes - 1)

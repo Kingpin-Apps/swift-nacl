@@ -22,7 +22,7 @@ class SecretBox {
     public let keySize: Int
     public let nonceSize: Int
     public let macBytes: Int
-    public let messageBytesMax: Int
+    public let messageBytesMax: UInt64
 
     private var key: Data
 
@@ -31,8 +31,8 @@ class SecretBox {
         
         keySize = sodium.cryptoSecretBox.keyBytes
         nonceSize = sodium.cryptoSecretBox.nonceBytes
-        macBytes = sodium.cryptoSecretBox.keyBytes
-        messageBytesMax = sodium.cryptoSecretBox.keyBytes
+        macBytes = sodium.cryptoSecretBox.macBytes
+        messageBytesMax = sodium.cryptoSecretBox.messageBytesMax
         
         try ensure(key.count == keySize, raising: .valueError("Invalid key"))
     }

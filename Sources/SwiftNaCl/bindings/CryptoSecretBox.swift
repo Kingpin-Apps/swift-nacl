@@ -7,7 +7,11 @@ public struct CryptoSecretBox {
     public let zeroBytes = crypto_secretbox_zerobytes()
     public let boxZeroBytes = crypto_secretbox_boxzerobytes()
     public let macBytes = crypto_secretbox_macbytes()
-    public let messageBytesMax = crypto_secretbox_messagebytes_max()
+    /// The largest message, in bytes, that can be encrypted with one key/nonce pair.
+    ///
+    /// libsodium returns `SIZE_MAX - macBytes` as a `size_t`, which does not fit in
+    /// an `Int`, so the value is exposed as `UInt64`.
+    public let messageBytesMax = UInt64(UInt(bitPattern: crypto_secretbox_messagebytes_max()))
 
     /**
      Encrypts the given message using the provided nonce and key.
