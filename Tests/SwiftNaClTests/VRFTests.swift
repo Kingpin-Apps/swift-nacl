@@ -125,12 +125,18 @@ struct VRFTests {
 
     // MARK: - VRF Signing Key Tests
 
-    @Test("creates signing key from bytes of correct size")
+    @Test("creates signing key from valid seed-and-public-key bytes")
     func testVRFSigningKeyFromBytes() async throws {
-        let randomBytes = Data((0..<VRF.secretKeyBytes).map { _ in UInt8.random(in: 0...255) })
-        let signingKey = try VRFSigningKey(bytes: randomBytes)
+        let keyBytes = VRFKeyPair.generate().signingKey.bytes
+        let signingKey = try VRFSigningKey(bytes: keyBytes)
 
-        #expect(signingKey.bytes == randomBytes)
+        #expect(signingKey.bytes == keyBytes)
+    }
+
+    @Test("rejects 64 random bytes whose public half does not match the seed")
+    func testVRFSigningKeyFromRandomBytes() async throws {
+        let randomBytes = Data((0..<VRF.secretKeyBytes).map { _ in UInt8.random(in: 0...255) })
+        #expect(throws: VRFError.invalidSecretKey) { _ = try VRFSigningKey(bytes: randomBytes) }
     }
 
     @Test("fails to create signing key from bytes with invalid size")

@@ -215,13 +215,31 @@ public struct VRFSigningKey: Equatable, Hashable, Sendable {
     
     /// Creates a VRF signing key from raw bytes
     /// 
-    /// - Parameter bytes: 64-byte signing key data
-    /// - Throws: `VRFError.invalidInputSize` if the data is not exactly 64 bytes
+    /// - Parameter bytes: 64-byte signing key data (seed followed by the public key)
+    /// - Throws: `VRFError.invalidInputSize` if the data is not exactly 64 bytes, or
+    ///   `VRFError.invalidSecretKey` if the public-key half does not match the seed
     public init(bytes: Data) throws {
         guard bytes.count == VRF.secretKeyBytes else {
             throw VRFError.invalidInputSize
         }
-        self._bytes = bytes
+        let seed = Data(bytes.prefix(VRF.seedBytes))
+        var derivedPublicKey = Data(count: VRF.publicKeyBytes)
+        var derivedSecretKey = Data(count: VRF.secretKeyBytes)
+        let result = seed.withUnsafeBytes { seedPtr in
+            derivedPublicKey.withUnsafeMutableBytes { publicPtr in
+                derivedSecretKey.withUnsafeMutableBytes { secretPtr in
+                    crypto_vrf_ietfdraft03_keypair_from_seed(
+                        publicPtr.bindMemory(to: UInt8.self).baseAddress!,
+                        secretPtr.bindMemory(to: UInt8.self).baseAddress!,
+                        seedPtr.bindMemory(to: UInt8.self).baseAddress!
+                    )
+                }
+            }
+        }
+        guard result == 0, Sodium().utils.sodiumMemcmp(Data(bytes), derivedSecretKey) else {
+            throw VRFError.invalidSecretKey
+        }
+        self._bytes = Data(bytes)
     }
     
     /// The raw bytes of the signing key (includes both private and public components)
