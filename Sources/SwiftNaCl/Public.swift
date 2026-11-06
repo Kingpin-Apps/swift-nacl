@@ -44,7 +44,7 @@ public class PublicKey: Hashable {
     public init(publicKey: Data, encoder: Encoder.Type = RawEncoder.self) throws {
         self.sodium = Sodium()
         self.SIZE = sodium.cryptoBox.publicKeyBytes
-        self.publicKey = encoder.decode(data: publicKey)
+        self.publicKey = try encoder.decode(data: publicKey)
 
         try ensure(
             self.publicKey.count == SIZE,
@@ -91,7 +91,7 @@ public class PrivateKey: Hashable {
         self.sodium = Sodium()
         self.SIZE = sodium.cryptoBox.secretKeyBytes
         self.SEED_SIZE = sodium.cryptoBox.seedBytes
-        self.privateKey = encoder.decode(data: privateKey)
+        self.privateKey = try encoder.decode(data: privateKey)
 
         try ensure(
             self.privateKey.count == SIZE,
@@ -119,7 +119,7 @@ public class PrivateKey: Hashable {
     /// - Throws: ``SodiumError/valueError(_:)`` if the decoded seed has the wrong length.
     public static func fromSeed(seed: Data, encoder: Encoder.Type = RawEncoder.self) throws -> PrivateKey {
         let sodium = Sodium()
-        let decodedSeed = encoder.decode(data: seed)
+        let decodedSeed = try encoder.decode(data: seed)
 
         try ensure(
             decodedSeed.count == sodium.cryptoBox.seedBytes,
@@ -204,7 +204,7 @@ public class Box {
     public init(encoded: Data, encoder: Encoder.Type = RawEncoder.self) throws {
         self.sodium = Sodium()
         self.NONCE_SIZE = sodium.cryptoBox.nonceBytes
-        self._sharedKey = encoder.decode(data: encoded)
+        self._sharedKey = try encoder.decode(data: encoded)
     }
 
     /// Generates a random ``PrivateKey``.
@@ -272,7 +272,7 @@ public class Box {
     public func decrypt(
         ciphertext: Data, nonce: Data? = nil, encoder: Encoder.Type = RawEncoder.self
     ) throws -> Data {
-        var ciphertext = encoder.decode(data: ciphertext)
+        var ciphertext = try encoder.decode(data: ciphertext)
         var nonceData = nonce
 
         if nonceData == nil {
@@ -372,7 +372,7 @@ public class SealedBox {
             raising: .valueError("SealedBoxes created with a public key cannot decrypt")
         )
 
-        let ciphertext = encoder.decode(data: ciphertext)
+        let ciphertext = try encoder.decode(data: ciphertext)
         let plaintext = try sodium.cryptoBox.sealOpen(
             ciphertext: ciphertext,
             publicKey: self.publicKey,

@@ -44,7 +44,7 @@ public class SecretBox {
     /// - Parameter encoder: The encoder used to decode `key`.
     /// - Throws: ``SodiumError/valueError(_:)`` if the decoded key has the wrong length.
     public init(key: Data, encoder: Encoder.Type = RawEncoder.self) throws {
-        self.key = encoder.decode(data: key)
+        self.key = try encoder.decode(data: key)
 
         keySize = sodium.cryptoSecretBox.keyBytes
         nonceSize = sodium.cryptoSecretBox.nonceBytes
@@ -98,7 +98,7 @@ public class SecretBox {
     /// - Throws: ``SodiumError/valueError(_:)`` if the nonce or ciphertext has the wrong
     ///   length, or ``SodiumError/cryptoError(_:)`` if the ciphertext fails authentication.
     public func decrypt(ciphertext: Data, nonce: Data? = nil, encoder: Encoder.Type = RawEncoder.self) throws -> Data {
-        var ciphertext = encoder.decode(data: ciphertext)
+        var ciphertext = try encoder.decode(data: ciphertext)
         let resolvedNonce: Data
         if let nonce {
             resolvedNonce = nonce
@@ -158,7 +158,7 @@ public class Aead {
     /// - Parameter encoder: The encoder used to decode `key`.
     /// - Throws: ``SodiumError/valueError(_:)`` if the decoded key has the wrong length.
     public init(key: Data, encoder: Encoder.Type = RawEncoder.self) throws {
-        self.key = encoder.decode(data: key)
+        self.key = try encoder.decode(data: key)
 
         keySize = sodium.cryptoAead.xchacha20poly1305IetfKeyBytes
         nonceSize = sodium.cryptoAead.xchacha20poly1305IetfNpubBytes
@@ -215,7 +215,7 @@ public class Aead {
     /// - Throws: ``SodiumError/valueError(_:)`` if the nonce has the wrong length, or
     ///   ``SodiumError/cryptoError(_:)`` if the ciphertext or `aad` fails authentication.
     public func decrypt(ciphertext: Data, aad: Data = Data(), nonce: Data? = nil, encoder: Encoder.Type = RawEncoder.self) throws -> Data {
-        var ciphertext = encoder.decode(data: ciphertext)
+        var ciphertext = try encoder.decode(data: ciphertext)
         let resolvedNonce: Data
         if let nonce {
             resolvedNonce = nonce

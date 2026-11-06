@@ -1,9 +1,13 @@
 import Foundation
 import Base32
 
+/// Converts bytes to and from a text encoding.
+///
+/// ``decode(data:)`` throws ``SodiumError/valueError(_:)`` on malformed input,
+/// so decoding untrusted data never terminates the process.
 public protocol Encoder {
     static func encode(data: Data) -> Data
-    static func decode(data: Data) -> Data
+    static func decode(data: Data) throws -> Data
 }
 
 public class RawEncoder: Encoder {
@@ -11,25 +15,20 @@ public class RawEncoder: Encoder {
         return data
     }
 
-    public static func decode(data: Data) -> Data {
+    public static func decode(data: Data) throws -> Data {
         return data
     }
 }
 
+/// Encodes and decodes lowercase hexadecimal. Decoding accepts either case.
 public class HexEncoder: Encoder {
     public static func encode(data: Data) -> Data {
         return data.map { String(format: "%02hhx", $0) }.joined().data(using: .utf8)!
     }
 
-    public static func decode(data: Data) -> Data {
-        var bytes = [UInt8]()
-        var hexStr = String(data: data, encoding: .utf8)!
-        while !hexStr.isEmpty {
-            let c = String(hexStr.prefix(2))
-            hexStr = String(hexStr.dropFirst(2))
-            bytes.append(UInt8(c, radix: 16)!)
-        }
-        return Data(bytes)
+    /// - Throws: ``SodiumError/valueError(_:)`` on an odd number of characters or a non-hex character.
+    public static func decode(data: Data) throws -> Data {
+        return try decodeHexDigits(data, name: "Hex")
     }
 }
 
@@ -38,9 +37,6 @@ public class HexEncoder: Encoder {
 /// Matches PyNaCl's `Base16Encoder`: ``encode(data:)`` produces uppercase
 /// hex digits (`0-9`, `A-F`). ``decode(data:)`` accepts uppercase or lowercase
 /// digits. For lowercase output use ``HexEncoder``.
-///
-/// Like the other encoders, ``decode(data:)`` traps on malformed input (an odd
-/// number of characters or a non-hex character).
 public class Base16Encoder: Encoder {
     private static let alphabet = Array("0123456789ABCDEF".utf8)
 
@@ -61,25 +57,9 @@ public class Base16Encoder: Encoder {
     ///
     /// - Parameter data: Hex digits as UTF-8 data; uppercase and lowercase are both accepted.
     /// - Returns: The decoded bytes.
-    public static func decode(data: Data) -> Data {
-        let digits = Array(data)
-        precondition(digits.count % 2 == 0, "Base16 input must have an even number of characters")
-        var output = Data(capacity: digits.count / 2)
-        var index = 0
-        while index < digits.count {
-            output.append(nibble(digits[index]) << 4 | nibble(digits[index + 1]))
-            index += 2
-        }
-        return output
-    }
-
-    private static func nibble(_ digit: UInt8) -> UInt8 {
-        switch digit {
-        case UInt8(ascii: "0")...UInt8(ascii: "9"): return digit - UInt8(ascii: "0")
-        case UInt8(ascii: "A")...UInt8(ascii: "F"): return digit - UInt8(ascii: "A") + 10
-        case UInt8(ascii: "a")...UInt8(ascii: "f"): return digit - UInt8(ascii: "a") + 10
-        default: preconditionFailure("Invalid Base16 character: \(digit)")
-        }
+    /// - Throws: ``SodiumError/valueError(_:)`` on an odd number of characters or a non-hex character.
+    public static func decode(data: Data) throws -> Data {
+        return try decodeHexDigits(data, name: "Base16")
     }
 }
 
@@ -88,8 +68,12 @@ public class Base32Encoder: Encoder {
         return data.base32EncodedData
     }
 
-    public static func decode(data: Data) -> Data {
-        return data.base32DecodedData!
+    /// - Throws: ``SodiumError/valueError(_:)`` if `data` is not valid Base32.
+    public static func decode(data: Data) throws -> Data {
+        guard let decoded = data.base32DecodedData else {
+            throw SodiumError.valueError("Invalid Base32 input")
+        }
+        return decoded
     }
 }
 
@@ -98,8 +82,12 @@ public class Base64Encoder: Encoder {
         return data.base64EncodedData()
     }
 
-    public static func decode(data: Data) -> Data {
-        return Data(base64Encoded: data)!
+    /// - Throws: ``SodiumError/valueError(_:)`` if `data` is not valid Base64.
+    public static func decode(data: Data) throws -> Data {
+        guard let decoded = Data(base64Encoded: data) else {
+            throw SodiumError.valueError("Invalid Base64 input")
+        }
+        return decoded
     }
 }
 
@@ -108,10 +96,37 @@ public class URLSafeBase64Encoder: Encoder {
         return data.base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").data(using: .utf8)!
     }
 
-    public static func decode(data: Data) -> Data {
-        let base64 = String(data: data, encoding: .utf8)!.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        return Data(base64Encoded: base64)!
+    /// - Throws: ``SodiumError/valueError(_:)`` if `data` is not valid URL-safe Base64.
+    public static func decode(data: Data) throws -> Data {
+        guard let text = String(data: data, encoding: .utf8),
+              let decoded = Data(base64Encoded: text.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/"))
+        else {
+            throw SodiumError.valueError("Invalid URL-safe Base64 input")
+        }
+        return decoded
     }
+}
+
+private func decodeHexDigits(_ data: Data, name: String) throws -> Data {
+    let digits = Array(data)
+    guard digits.count % 2 == 0 else {
+        throw SodiumError.valueError("\(name) input must have an even number of characters")
+    }
+    func nibble(_ digit: UInt8) throws -> UInt8 {
+        switch digit {
+        case UInt8(ascii: "0")...UInt8(ascii: "9"): return digit - UInt8(ascii: "0")
+        case UInt8(ascii: "A")...UInt8(ascii: "F"): return digit - UInt8(ascii: "A") + 10
+        case UInt8(ascii: "a")...UInt8(ascii: "f"): return digit - UInt8(ascii: "a") + 10
+        default: throw SodiumError.valueError("Invalid \(name) character")
+        }
+    }
+    var output = Data(capacity: digits.count / 2)
+    var index = 0
+    while index < digits.count {
+        output.append(try nibble(digits[index]) << 4 | nibble(digits[index + 1]))
+        index += 2
+    }
+    return output
 }
 
 public protocol Encodable {

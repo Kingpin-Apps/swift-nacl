@@ -15,7 +15,7 @@ struct EncoderTests {
     @Test("Raw encoder round-trips input data")
     func testRawEncoder() async throws {
         let encoded = RawEncoder.encode(data: text)
-        let decoded = RawEncoder.decode(data: encoded)
+        let decoded = try RawEncoder.decode(data: encoded)
         #expect(encoded == text, "RawEncoder encode failed")
         #expect(decoded == text, "RawEncoder decode failed")
     }
@@ -23,7 +23,7 @@ struct EncoderTests {
     @Test("Hex encoder produces expected encoding and decodes back")
     func testHexEncoder() async throws {
         let encoded = HexEncoder.encode(data: text)
-        let decoded = HexEncoder.decode(data: encoded)
+        let decoded = try HexEncoder.decode(data: encoded)
         #expect(encoded == hexEncodedText, "HexEncoder encode failed")
         #expect(decoded == text, "HexEncoder decode failed")
     }
@@ -31,7 +31,7 @@ struct EncoderTests {
     @Test("Base16 encoder produces expected encoding and decodes back")
     func testBase16Encoder() async throws {
         let encoded = Base16Encoder.encode(data: text)
-        let decoded = Base16Encoder.decode(data: encoded)
+        let decoded = try Base16Encoder.decode(data: encoded)
         #expect(encoded == base16EncodedText, "Base16Encoder encode failed")
         #expect(decoded == text, "Base16Encoder decode failed")
     }
@@ -49,7 +49,7 @@ struct EncoderTests {
         let raw = input.data(using: .utf8)!
         let encoded = Base16Encoder.encode(data: raw)
         #expect(String(data: encoded, encoding: .utf8) == expected)
-        #expect(Base16Encoder.decode(data: encoded) == raw)
+        #expect(try Base16Encoder.decode(data: encoded) == raw)
     }
 
     @Test("Base16 encoder covers every byte value and decodes lowercase input")
@@ -59,8 +59,8 @@ struct EncoderTests {
         #expect(encoded.count == 512)
         #expect(String(data: encoded.prefix(8), encoding: .utf8) == "00010203")
         #expect(String(data: encoded.suffix(8), encoding: .utf8) == "FCFDFEFF")
-        #expect(Base16Encoder.decode(data: encoded) == raw)
-        #expect(Base16Encoder.decode(data: HexEncoder.encode(data: raw)) == raw)
+        #expect(try Base16Encoder.decode(data: encoded) == raw)
+        #expect(try Base16Encoder.decode(data: HexEncoder.encode(data: raw)) == raw)
         #expect(String(data: encoded, encoding: .utf8) == String(data: HexEncoder.encode(data: raw), encoding: .utf8)!.uppercased())
     }
 
@@ -72,7 +72,7 @@ struct EncoderTests {
     @Test("Base32 encoder produces expected encoding and decodes back")
     func testBase32Encoder() async throws {
         let encoded = Base32Encoder.encode(data: text)
-        let decoded = Base32Encoder.decode(data: encoded)
+        let decoded = try Base32Encoder.decode(data: encoded)
         #expect(encoded == base32EncodedText, "Base32Encoder encode failed")
         #expect(decoded == text, "Base32Encoder decode failed")
     }
@@ -80,7 +80,7 @@ struct EncoderTests {
     @Test("Base64 encoder produces expected encoding and decodes back")
     func testBase64Encoder() async throws {
         let encoded = Base64Encoder.encode(data: text)
-        let decoded = Base64Encoder.decode(data: encoded)
+        let decoded = try Base64Encoder.decode(data: encoded)
         #expect(encoded == base64EncodedText, "Base64Encoder encode failed")
         #expect(decoded == text, "Base64Encoder decode failed")
     }
@@ -88,7 +88,7 @@ struct EncoderTests {
     @Test("URL-safe Base64 encoder produces expected encoding and decodes back")
     func testURLSafeBase64Encoder() async throws {
         let encoded = URLSafeBase64Encoder.encode(data: text)
-        let decoded = URLSafeBase64Encoder.decode(data: encoded)
+        let decoded = try URLSafeBase64Encoder.decode(data: encoded)
         #expect(encoded == urlSafeBase64EncodedText, "URLSafeBase64Encoder encode failed")
         #expect(decoded == text, "URLSafeBase64Encoder decode failed")
     }

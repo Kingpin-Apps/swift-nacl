@@ -46,7 +46,7 @@ public class VerifyKey: Equatable, Hashable {
     public init(key: Data, encoder: Encoder.Type = RawEncoder.self) throws {
         self.sodium = Sodium()
         // Decode the key
-        self.key = encoder.decode(data: key)
+        self.key = try encoder.decode(data: key)
         
         try ensure(self.key.count == sodium.cryptoSign.publicKeyBytes, raising: .valueError("The key must be exactly \(sodium.cryptoSign.publicKeyBytes) bytes long"))
     }
@@ -78,9 +78,9 @@ public class VerifyKey: Equatable, Hashable {
                 signature.count == sodium.cryptoSign.bytes,
                 raising: .valueError("Verification signature must be created from \(sodium.cryptoSign.bytes) bytes")
             )
-            signed = signature + encoder.decode(data: smessage)
+            signed = try signature + encoder.decode(data: smessage)
         } else {
-            signed = encoder.decode(data: smessage)
+            signed = try encoder.decode(data: smessage)
         }
         return try sodium.cryptoSign.open(signed: signed, pk: self.key)
     }
@@ -114,7 +114,7 @@ public class SigningKey: Equatable, Hashable {
     public init(seed: Data, encoder: Encoder.Type = RawEncoder.self) throws {
         self.sodium = Sodium()
         // Decode the seed
-        self.seed = encoder.decode(data: seed)
+        self.seed = try encoder.decode(data: seed)
         
         try ensure(
             self.seed.count == sodium.cryptoSign.seedBytes,

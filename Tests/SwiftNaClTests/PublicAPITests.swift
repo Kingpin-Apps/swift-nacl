@@ -138,7 +138,7 @@ struct SecretPublicAPITests {
     }
 
     private func hexData(_ hex: String) -> Data {
-        HexEncoder.decode(data: Data(hex.utf8))
+        try! HexEncoder.decode(data: Data(hex.utf8))
     }
 }
 
@@ -208,9 +208,9 @@ struct BindingPublicAPITests {
         #expect(shortHash.xKeyBytes == 16)
 
         let sip64 = try shortHash.siphash24(data: Data(), key: key)
-        #expect(sip64 == HexEncoder.decode(data: Data("310e0edd47db6f72".utf8)))
+        #expect(try sip64 == HexEncoder.decode(data: Data("310e0edd47db6f72".utf8)))
         let sip128 = try shortHash.siphashx24(data: Data(), key: key)
-        #expect(sip128 == HexEncoder.decode(data: Data("a3817f04ba25a8e66df67214c7550293".utf8)))
+        #expect(try sip128 == HexEncoder.decode(data: Data("a3817f04ba25a8e66df67214c7550293".utf8)))
 
         let message = Data(0..<15)
         #expect(try shortHash.siphash24(data: message, key: key) == HexEncoder.decode(data: Data("e545be4961ca29a1".utf8)))
