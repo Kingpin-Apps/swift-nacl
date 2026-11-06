@@ -106,7 +106,7 @@ public struct Hash {
     ///   - encoder: The encoder applied to the digest (hex by default).
     /// - Returns: The encoded 8-byte digest.
     /// - Throws: ``SodiumError/valueError(_:)`` if the key is not 16 bytes long.
-    public func siphash24(message: Data, key: Data = Data(), encoder: Encoder.Type = HexEncoder.self) throws -> Data {
+    public func siphash24(message: Data, key: Data, encoder: Encoder.Type = HexEncoder.self) throws -> Data {
         let digest = try sodium.cryptoShortHash.siphash24(
             data: message,
             key: key
@@ -122,11 +122,35 @@ public struct Hash {
     ///   - encoder: The encoder applied to the digest (hex by default).
     /// - Returns: The encoded 16-byte digest.
     /// - Throws: ``SodiumError/valueError(_:)`` if the key is not 16 bytes long.
-    public func siphashx24(message: Data, key: Data = Data(), encoder: Encoder.Type = HexEncoder.self) throws -> Data {
+    public func siphashx24(message: Data, key: Data, encoder: Encoder.Type = HexEncoder.self) throws -> Data {
         let digest = try sodium.cryptoShortHash.siphashx24(
             data: message,
             key: key
         )
         return encoder.encode(data: digest)
+    }
+
+    /// Calls ``siphash24(message:key:encoder:)`` with an empty key, which always throws.
+    ///
+    /// Earlier versions defaulted `key` to empty `Data`, which SipHash rejects
+    /// because it needs a 16-byte key. This overload keeps such calls compiling
+    /// (with a deprecation warning) without offering a default that can never work.
+    ///
+    /// - Throws: ``SodiumError/valueError(_:)``, always.
+    @available(*, deprecated, message: "SipHash needs a 16-byte key; pass key: explicitly")
+    public func siphash24(message: Data, encoder: Encoder.Type = HexEncoder.self) throws -> Data {
+        return try siphash24(message: message, key: Data(), encoder: encoder)
+    }
+
+    /// Calls ``siphashx24(message:key:encoder:)`` with an empty key, which always throws.
+    ///
+    /// Earlier versions defaulted `key` to empty `Data`, which SipHashX rejects
+    /// because it needs a 16-byte key. This overload keeps such calls compiling
+    /// (with a deprecation warning) without offering a default that can never work.
+    ///
+    /// - Throws: ``SodiumError/valueError(_:)``, always.
+    @available(*, deprecated, message: "SipHashX needs a 16-byte key; pass key: explicitly")
+    public func siphashx24(message: Data, encoder: Encoder.Type = HexEncoder.self) throws -> Data {
+        return try siphashx24(message: message, key: Data(), encoder: encoder)
     }
 }

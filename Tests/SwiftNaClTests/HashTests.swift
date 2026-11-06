@@ -56,4 +56,16 @@ struct HashTests {
         let hashedMessage = try _hash.siphashx24(message: message, key: key)
         #expect(hashedMessage.count == 32, "Siphashx24 hash length mismatch")
     }
+
+    @Test("siphash24 and siphashx24 require a key; the keyless form always throws")
+    @available(*, deprecated)
+    func testSiphashKeyRequired() async throws {
+        let key = Data(0..<16)
+        #expect(try _hash.siphash24(message: Data(), key: key, encoder: RawEncoder.self)
+            == HexEncoder.decode(data: Data("310e0edd47db6f72".utf8)))
+        #expect(try _hash.siphashx24(message: Data(), key: key, encoder: RawEncoder.self)
+            == HexEncoder.decode(data: Data("a3817f04ba25a8e66df67214c7550293".utf8)))
+        #expect(throws: SodiumError.self) { _ = try _hash.siphash24(message: Data("x".utf8)) }
+        #expect(throws: SodiumError.self) { _ = try _hash.siphashx24(message: Data("x".utf8)) }
+    }
 }
