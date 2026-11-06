@@ -3,12 +3,12 @@ import Clibsodium
 import Foundation
 
 public struct CryptoKx {
-    let publicKeyBytes = Int(crypto_kx_publickeybytes())
-    let secretKeyBytes = Int(crypto_kx_secretkeybytes())
-    let seedBytes = Int(crypto_kx_seedbytes())
-    let sessionKeyBytes = Int(crypto_kx_sessionkeybytes())
+    public let publicKeyBytes = Int(crypto_kx_publickeybytes())
+    public let secretKeyBytes = Int(crypto_kx_secretkeybytes())
+    public let seedBytes = Int(crypto_kx_seedbytes())
+    public let sessionKeyBytes = Int(crypto_kx_sessionkeybytes())
     
-    func keypair() throws -> (publicKey: Data, secretKey: Data) {
+    public func keypair() throws -> (publicKey: Data, secretKey: Data) {
         /// Generate a key pair.
         ///
         /// - Note: This is a duplicate crypto_box_keypair, but is included for api consistency.
@@ -36,7 +36,7 @@ public struct CryptoKx {
         return (publicKey, secretKey)
     }
 
-    func seedKeypair(seed: Data) throws -> (publicKey: Data, secretKey: Data) {
+    public func seedKeypair(seed: Data) throws -> (publicKey: Data, secretKey: Data) {
         /// Returns a (public, secret) key pair deterministically generated from an input ``seed``.
         /// - Note: This is functionally the same as crypto_box_seed_keypair, however it uses the blake2b hash primitive instead of sha512.
         /// It is included mainly for api consistency when using crypto_kx.
@@ -76,7 +76,7 @@ public struct CryptoKx {
         return (publicKey, secretKey)
     }
 
-    func clientSessionKeys(clientPublicKey: Data, clientSecretKey: Data, serverPublicKey: Data) throws -> (rxKey: Data, txKey: Data) {
+    public func clientSessionKeys(clientPublicKey: Data, clientSecretKey: Data, serverPublicKey: Data) throws -> (rxKey: Data, txKey: Data) {
         /// Generate session keys for the client.
         ///
         /// - Parameters:
@@ -133,7 +133,7 @@ public struct CryptoKx {
         return (rxKey, txKey)
     }
 
-    func serverSessionKeys(serverPublicKey: Data, serverSecretKey: Data, clientPublicKey: Data) throws -> (rxKey: Data, txKey: Data) {
+    public func serverSessionKeys(serverPublicKey: Data, serverSecretKey: Data, clientPublicKey: Data) throws -> (rxKey: Data, txKey: Data) {
         /// Generate session keys for the server.
         ///
         /// - Parameters:

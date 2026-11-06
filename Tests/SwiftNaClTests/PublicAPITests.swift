@@ -141,3 +141,78 @@ struct SecretPublicAPITests {
         HexEncoder.decode(data: Data(hex.utf8))
     }
 }
+
+@Suite("CryptoSecretBox, CryptoKx and CryptoShortHash public API (no @testable import)")
+struct BindingPublicAPITests {
+    let sodium = Sodium()
+
+    @Test("CryptoSecretBox easy/openEasy and box/open round-trip and agree")
+    func secretBoxBindingRoundTrip() throws {
+        let secretBox = sodium.cryptoSecretBox
+        let key = random(size: secretBox.keyBytes)
+        let nonce = random(size: secretBox.nonceBytes)
+        let message = Data("binding".utf8)
+
+        let easy = try secretBox.easy(message: message, nonce: nonce, key: key)
+        #expect(easy.count == message.count + secretBox.macBytes)
+        #expect(try secretBox.openEasy(ciphertext: easy, nonce: nonce, key: key) == message)
+
+        let boxed = try secretBox.box(message: message, nonce: nonce, key: key)
+        #expect(boxed == easy)
+        #expect(try secretBox.open(ciphertext: boxed, nonce: nonce, key: key) == message)
+    }
+
+    @Test("CryptoSecretBox openEasy returns an empty plaintext for an empty message")
+    func secretBoxBindingEmptyMessage() throws {
+        let secretBox = sodium.cryptoSecretBox
+        let key = random(size: secretBox.keyBytes)
+        let nonce = random(size: secretBox.nonceBytes)
+
+        let ciphertext = try secretBox.easy(message: Data(), nonce: nonce, key: key)
+        #expect(ciphertext.count == secretBox.macBytes)
+        #expect(try secretBox.openEasy(ciphertext: ciphertext, nonce: nonce, key: key) == Data())
+
+        let box = try SecretBox(key: key)
+        #expect(try box.decrypt(ciphertext: box.encrypt(plaintext: Data()).combined) == Data())
+    }
+
+    @Test("CryptoKx client and server derive matching session keys")
+    func kxSessionKeys() throws {
+        let kx = sodium.cryptoKx
+        let client = try kx.keypair()
+        let server = try kx.seedKeypair(seed: Data(repeating: 9, count: kx.seedBytes))
+        #expect(client.publicKey.count == kx.publicKeyBytes)
+        #expect(server.secretKey.count == kx.secretKeyBytes)
+
+        let clientKeys = try kx.clientSessionKeys(
+            clientPublicKey: client.publicKey, clientSecretKey: client.secretKey,
+            serverPublicKey: server.publicKey)
+        let serverKeys = try kx.serverSessionKeys(
+            serverPublicKey: server.publicKey, serverSecretKey: server.secretKey,
+            clientPublicKey: client.publicKey)
+
+        #expect(clientKeys.rxKey.count == kx.sessionKeyBytes)
+        #expect(clientKeys.rxKey == serverKeys.txKey)
+        #expect(clientKeys.txKey == serverKeys.rxKey)
+        #expect(clientKeys.rxKey != clientKeys.txKey)
+        #expect(try kx.seedKeypair(seed: Data(repeating: 9, count: kx.seedBytes)) == server)
+    }
+
+    @Test("CryptoShortHash matches the SipHash reference vectors")
+    func shortHashVectors() throws {
+        let shortHash = sodium.cryptoShortHash
+        let key = Data(0..<16)
+        #expect(shortHash.bytes == 8)
+        #expect(shortHash.keyBytes == 16)
+        #expect(shortHash.xBytes == 16)
+        #expect(shortHash.xKeyBytes == 16)
+
+        let sip64 = try shortHash.siphash24(data: Data(), key: key)
+        #expect(sip64 == HexEncoder.decode(data: Data("310e0edd47db6f72".utf8)))
+        let sip128 = try shortHash.siphashx24(data: Data(), key: key)
+        #expect(sip128 == HexEncoder.decode(data: Data("a3817f04ba25a8e66df67214c7550293".utf8)))
+
+        let message = Data(0..<15)
+        #expect(try shortHash.siphash24(data: message, key: key) == HexEncoder.decode(data: Data("e545be4961ca29a1".utf8)))
+    }
+}

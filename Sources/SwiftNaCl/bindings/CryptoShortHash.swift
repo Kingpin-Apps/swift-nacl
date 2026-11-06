@@ -2,11 +2,11 @@ import Clibsodium
 import Foundation
 
 public struct CryptoShortHash {
-    let bytes = crypto_shorthash_siphash24_bytes()
-    let keyBytes = crypto_shorthash_siphash24_keybytes()
+    public let bytes = crypto_shorthash_siphash24_bytes()
+    public let keyBytes = crypto_shorthash_siphash24_keybytes()
     
-    var xBytes = crypto_shorthash_siphashx24_bytes()
-    var xKeyBytes = crypto_shorthash_siphashx24_keybytes()
+    public let xBytes = crypto_shorthash_siphashx24_bytes()
+    public let xKeyBytes = crypto_shorthash_siphashx24_keybytes()
     
     /**
      Computes a fast, cryptographic quality, keyed hash of the input data.
@@ -18,7 +18,7 @@ public struct CryptoShortHash {
      - Throws: `CryptoError.invalidKey` if the key length is invalid.
      `CryptoError.encryptionFailed` if hashing fails.
      */
-    func siphash24(data: Data, key: Data) throws -> Data {
+    public func siphash24(data: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         
         var digest = [UInt8](repeating: 0, count: bytes)
@@ -45,7 +45,7 @@ public struct CryptoShortHash {
      `CryptoError.invalidKey` if the key length is invalid.
      `CryptoError.encryptionFailed` if hashing fails.
      */
-    func siphashx24(data: Data, key: Data) throws -> Data {
+    public func siphashx24(data: Data, key: Data) throws -> Data {
         try ensure(key.count == xKeyBytes, raising: .valueError("Invalid key"))
         
         var digest = [UInt8](repeating: 0, count: xBytes)

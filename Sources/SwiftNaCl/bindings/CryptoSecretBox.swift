@@ -25,7 +25,7 @@ public struct CryptoSecretBox {
                `CryptoError.invalidNonce` if the nonce length is invalid.
                `CryptoError.encryptionFailed` if encryption fails.
      */
-    func box(message: Data, nonce: Data, key: Data) throws -> Data {
+    public func box(message: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
             nonce.count == nonceBytes,
@@ -74,7 +74,7 @@ public struct CryptoSecretBox {
                `CryptoError.invalidNonce` if the nonce length is invalid.
                `CryptoError.decryptionFailed` if decryption fails.
      */
-    func open(ciphertext: Data, nonce: Data, key: Data) throws -> Data {
+    public func open(ciphertext: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
             nonce.count == nonceBytes,
@@ -123,7 +123,7 @@ public struct CryptoSecretBox {
                `CryptoError.invalidNonce` if the nonce length is invalid.
                `CryptoError.encryptionFailed` if encryption fails.
      */
-    func easy(message: Data, nonce: Data, key: Data) throws -> Data {
+    public func easy(message: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
             nonce.count == nonceBytes,
@@ -174,7 +174,7 @@ public struct CryptoSecretBox {
                `CryptoError.invalidCiphertext` if the ciphertext length is invalid.
                `CryptoError.decryptionFailed` if decryption fails.
      */
-    func openEasy(ciphertext: Data, nonce: Data, key: Data) throws -> Data {
+    public func openEasy(ciphertext: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
             nonce.count == nonceBytes,
