@@ -58,7 +58,7 @@ assert(originalSeed == seed) // Always true
 
 ### Working with Hexadecimal Representations
 
-The VRF seed, verifying key, proof and output types support hexadecimal string representations. ``VRFSigningKey`` does not; store its ``VRFSigningKey/seed`` instead:
+The VRF seed, verifying key, proof and output types support hexadecimal string representations. ``VRFSigningKey`` does not; store its ``VRFSigningKey/seed`` instead. If you do restore a signing key from its 64 raw bytes with ``VRFSigningKey/init(bytes:)``, the initializer checks that the public-key half matches the seed and throws ``VRFError/invalidSecretKey`` otherwise:
 
 ```swift
 let keyPair = VRFKeyPair.generate()

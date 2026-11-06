@@ -275,7 +275,11 @@ func verifyPassword(_ password: Data, hash: Data) -> Bool {
 }
 ```
 
+You can also store the hash as text: drop the trailing zero bytes, keep the string, and pass `Data(hashString.utf8)` to `verify`. Verification reads only the bytes you pass, with or without the zero padding.
+
 ``PwHash/verify(passwordHash:password:)`` can verify Argon2i, Argon2id and scrypt hashes, choosing the algorithm from the hash prefix.
+
+``PwHash/scryptsalsa208sha256Str(password:opsLimit:memLimit:)`` defaults to the scrypt interactive limits (N = 2^14). Before 2.0 it used the Argon2id limits by mistake, which produced weaker scrypt hashes with N = 2^10 (they start with `$7$8`); rehash those when users next log in.
 
 ### Secure Password Derivation
 

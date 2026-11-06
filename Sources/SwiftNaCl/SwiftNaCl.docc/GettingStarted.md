@@ -26,7 +26,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "1.0.0")
+    .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "2.0.0")
 ],
 targets: [
     .target(
@@ -92,6 +92,8 @@ do {
     print("Cryptographic operation failed: \(error)")
 }
 ```
+
+Malformed input from a peer, such as a ciphertext shorter than the authentication tag, a key of the wrong length, or an encoded string that ``HexEncoder`` or ``Base64Encoder`` cannot decode, also throws a ``SodiumError`` rather than terminating the process.
 
 ### Thread Safety
 

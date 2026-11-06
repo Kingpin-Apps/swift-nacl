@@ -44,7 +44,7 @@ Add the following to your `Package.swift` file:
 
 ``swift
 dependencies: [
-    .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "1.0.0")
+    .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "2.0.0")
 ],
 targets: [
     .target(
@@ -246,6 +246,8 @@ assert(output == output2) // Always true!
 - `Base16Encoder` - Base16 (RFC 4648) encoding: uppercase hex, decodes either case
 - `Base64Encoder` - Base64 encoding (via Foundation)
 - `Base32Encoder`, `URLSafeBase64Encoder` - Base32 and URL-safe Base64 encoding
+
+`decode(data:)` throws `SodiumError.valueError` on malformed input (an odd number of hex digits, a non-hex character, invalid UTF-8, or invalid Base32/Base64), so APIs that decode untrusted input throw instead of terminating the process. Since 2.0 `decode(data:)` is a throwing requirement: call it with `try`, and mark `decode` in custom `Encoder` types as `throws`.
 
 ### Error Handling
 
