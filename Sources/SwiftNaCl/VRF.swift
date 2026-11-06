@@ -1,88 +1,62 @@
 import Foundation
 import Clibsodium
 
-/**
- Verifiable Random Function (VRF) implementation using IETF Draft 03 specification
- 
- This module provides a Swift interface to the libsodium VRF implementation,
- which follows the IETF draft specification for VRF using Ed25519.
- 
- VRF allows generating pseudorandom outputs that can be verified by anyone
- with the corresponding public key, while ensuring the output is deterministic
- for a given private key and input message.
- 
- ## Overview
- 
- The VRF implementation provides the following key properties:
- - **Deterministic**: The same private key and input always produce the same output
- - **Pseudorandom**: Outputs appear random to anyone without the private key
- - **Verifiable**: Anyone can verify that an output was generated correctly using the public key
- - **Unforgeable**: Only the holder of the private key can generate valid proofs
- 
- ## Usage
- 
- ```swift
- // Generate a VRF key pair
- let keyPair = VRFKeyPair.generate()
- 
- // Create a proof for a message
- let message = "Hello, VRF!".data(using: .utf8)!
- let proof = try keyPair.signingKey.prove(message: message)
- 
- // Verify the proof and get the output
- let output = try keyPair.verifyingKey.verify(message: message, proof: proof)
- print("VRF Output: \(output.hexEncodedString())")
- ```
- 
- ## Security Considerations
- 
- - Private keys and seeds must be kept secret
- - Use cryptographically secure random number generation for seeds
- - Memory is automatically zeroed when VRF objects are deallocated
- - All operations are constant-time with respect to secret data
- 
- ## See Also
- 
- - ``VRFSeed``
- - ``VRFSigningKey``
- - ``VRFVerifyingKey``
- - ``VRFProof``
- - ``VRFOutput``
- - ``VRFKeyPair``
- - <doc:VerifiableRandomFunctions>
- */
-/// 
-/// This module provides a Swift interface to the libsodium VRF implementation,
-/// which follows the IETF draft specification for VRF using Ed25519.
-/// 
-/// VRF allows generating pseudorandom outputs that can be verified by anyone
-/// with the corresponding public key, while ensuring the output is deterministic
-/// for a given private key and input message.
-/// 
-/// ## Security Considerations
-/// 
-/// - Private keys and seeds must be kept secret
-/// - Use cryptographically secure random number generation for seeds
-/// - Memory is automatically zeroed when VRF objects are deallocated
-/// - All operations are constant-time with respect to secret data
-/// 
-/// ## Usage Example
-/// 
+/// Verifiable Random Function (VRF) constants, following the IETF draft 03 specification.
+///
+/// This module provides a Swift interface to the libsodium VRF implementation
+/// (`crypto_vrf_ietfdraft03_*`), which follows draft-irtf-cfrg-vrf-03 using Ed25519.
+/// These functions come from the Cardano fork of libsodium bundled with this package.
+///
+/// A VRF produces pseudorandom outputs that anyone with the matching public key
+/// can verify, while the output stays deterministic for a given private key and
+/// input message.
+///
+/// ## Overview
+///
+/// The VRF implementation provides the following key properties:
+/// - **Deterministic**: The same private key and input always produce the same output
+/// - **Pseudorandom**: Outputs appear random to anyone without the private key
+/// - **Verifiable**: Anyone can verify that an output was generated correctly using the public key
+/// - **Unforgeable**: Only the holder of the private key can generate valid proofs
+///
+/// The `VRF` type itself only holds the byte sizes used by the VRF types:
+/// ``seedBytes`` (32), ``secretKeyBytes`` (64), ``publicKeyBytes`` (32),
+/// ``proofBytes`` (80) and ``outputBytes`` (64).
+///
+/// ## Usage
+///
 /// ```swift
 /// // Generate a random seed
 /// let seed = VRFSeed.generate()
-/// 
-/// // Create key pair from seed
-/// let keyPair = VRFKeyPair.from(seed: seed)
-/// 
+///
+/// // Create a key pair from the seed
+/// let keyPair = try VRFKeyPair.from(seed: seed)
+///
 /// // Create a proof for a message
 /// let message = "Hello, VRF!".data(using: .utf8)!
 /// let proof = try keyPair.signingKey.prove(message: message)
-/// 
+///
 /// // Verify the proof and get the output
 /// let output = try keyPair.verifyingKey.verify(message: message, proof: proof)
-/// print("VRF Output: \(output.bytes.hexEncodedString())")
+/// print("VRF Output: \(output.hexEncodedString())")
 /// ```
+///
+/// ## Security Considerations
+///
+/// - Private keys and seeds must be kept secret.
+/// - Use ``VRFSeed/generate()`` or another cryptographically secure source for seeds.
+/// - VRF key material is held in ordinary `Data` values and is not zeroed
+///   automatically when it is released.
+///
+/// ## See Also
+///
+/// - ``VRFSeed``
+/// - ``VRFSigningKey``
+/// - ``VRFVerifyingKey``
+/// - ``VRFProof``
+/// - ``VRFOutput``
+/// - ``VRFKeyPair``
+/// - <doc:VerifiableRandomFunctions>
 public struct VRF {
     
     // MARK: - Constants
@@ -315,8 +289,14 @@ public struct VRFSigningKey: Equatable, Hashable, Sendable {
         return try VRFProof(bytes: proofBytes)
     }
     
-    /// Returns a truncated hexadecimal representation (for logging/debugging)
-    /// Note: Does not expose the full secret key for security reasons
+    /// Returns a truncated hexadecimal representation (for logging/debugging).
+    ///
+    /// The fingerprint is the first 8 bytes (16 hex characters) of the secret
+    /// key followed by `...`.
+    ///
+    /// - Warning: Those 8 bytes are part of the secret seed, so the fingerprint
+    ///   still reveals secret material. To identify a key in logs, prefer the
+    ///   public ``verifyingKey`` (for example `verifyingKey.hexEncodedString()`).
     public func fingerprint() -> String {
         return String(_bytes.hexEncodedString().prefix(16)) + "..."
     }

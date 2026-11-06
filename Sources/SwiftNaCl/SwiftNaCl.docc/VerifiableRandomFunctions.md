@@ -6,7 +6,7 @@ Generate cryptographically secure, deterministic, and verifiable pseudorandom ou
 
 Verifiable Random Functions (VRF) allow you to generate pseudorandom outputs that can be verified by anyone with the corresponding public key. The output is deterministic for a given private key and input message, but appears random to anyone without the private key.
 
-SwiftNaCl implements the IETF Draft 03 VRF specification using Ed25519 curves, providing both security and performance.
+SwiftNaCl implements the IETF draft 03 VRF specification (draft-irtf-cfrg-vrf-03) using Ed25519, through the `crypto_vrf_ietfdraft03_*` functions in the Cardano fork of libsodium that ships with this package. This is the VRF used by the Cardano protocol.
 
 ### Key Properties
 
@@ -42,7 +42,8 @@ You can generate VRF keys deterministically from a seed:
 
 ```swift
 // Create a seed (must be exactly 32 bytes)
-let seedData = "my-deterministic-seed-32-bytes!".data(using: .utf8)!
+// For real keys, use VRFSeed.generate() or another secure random source
+let seedData = "my-deterministic-seed-32-bytes!!".data(using: .utf8)!
 let seed = try VRFSeed(bytes: seedData)
 
 // Generate keys from seed - always produces the same keys
@@ -57,7 +58,7 @@ assert(originalSeed == seed) // Always true
 
 ### Working with Hexadecimal Representations
 
-All VRF types support hexadecimal string representations:
+The VRF seed, verifying key, proof and output types support hexadecimal string representations. ``VRFSigningKey`` does not; store its ``VRFSigningKey/seed`` instead:
 
 ```swift
 let keyPair = VRFKeyPair.generate()
@@ -110,7 +111,7 @@ do {
 ```
 
 Common error scenarios:
-- **Invalid input sizes**: Seeds must be 32 bytes, public keys 32 bytes, etc.
+- **Invalid input sizes**: Seeds and verifying keys must be 32 bytes, signing keys 64 bytes, proofs 80 bytes and outputs 64 bytes
 - **Invalid public keys**: Not all 32-byte values are valid Ed25519 public keys
 - **Verification failures**: Wrong key, tampered proof, or incorrect message
 - **Invalid proofs**: Malformed or corrupted proof data
@@ -126,28 +127,22 @@ Common error scenarios:
 
 ### Best Practices
 
-1. **Use cryptographically secure random seeds**: Use ``VRFSeed.generate()`` for random key generation
+1. **Use cryptographically secure random seeds**: Use ``VRFSeed/generate()`` or ``VRFKeyPair/generate()`` for random key generation
 2. **Validate inputs**: Always handle ``VRFError`` cases appropriately
 3. **Protect signing keys**: Store signing keys securely and never transmit them
 4. **Use deterministic generation carefully**: Only use deterministic key generation when necessary
 
 ### Memory Safety
 
-SwiftNaCl automatically handles secure memory cleanup, but you should still follow good security practices:
+VRF keys and seeds are stored in ordinary `Data` values and are not zeroed automatically when they are released, so follow good security practices:
 
-- Don't log sensitive data like signing keys or seeds
+- Don't log sensitive data like signing keys or seeds. ``VRFSigningKey/fingerprint()`` still includes 8 bytes of the secret key, so log the verifying key instead
 - Use secure storage mechanisms for long-term key storage
 - Be cautious when serializing keys to disk or network
 
 ## Performance Characteristics
 
-VRF operations have different performance characteristics:
-
-- **Key Generation**: ~0.0001 seconds (very fast)
-- **Proof Generation**: ~0.0007 seconds (fast)
-- **Proof Verification**: ~0.0007 seconds (fast)
-
-These operations are suitable for high-frequency use cases and real-time applications.
+Key generation is very fast. Proof generation and verification each take well under a millisecond on modern hardware, so VRF operations are suitable for high-frequency use cases. Measure on your target devices if timing matters.
 
 ## Integration Examples
 
@@ -167,11 +162,14 @@ let blockRandomness = try blockProducerKeyPair.verifyingKey.verify(
     proof: randomnessProof
 )
 
-// Other nodes can verify the randomness
-let isValidRandomness = try blockProducerKeyPair.verifyingKey.verify(
+// Other nodes receive the proof and the producer's public verifying key,
+// then check the proof and derive the same randomness themselves
+let producerVerifyingKey = blockProducerKeyPair.verifyingKey
+let checkedRandomness = try producerVerifyingKey.verify(
     message: blockHeightData,
     proof: randomnessProof
-) == blockRandomness
+) // Throws VRFError.verificationFailed if the proof is invalid
+assert(checkedRandomness == blockRandomness)
 ```
 
 ### Cryptographic Lotteries
@@ -190,6 +188,7 @@ let randomnessOutput = try lotteryOperatorKeyPair.verifyingKey.verify(
 )
 
 // Convert randomness to lottery numbers
+// (simple modulo for illustration; it is slightly biased)
 let randomBytes = randomnessOutput.bytes
 let lotteryNumber1 = Int(randomBytes[0]) % 50 + 1
 let lotteryNumber2 = Int(randomBytes[1]) % 50 + 1
@@ -200,8 +199,9 @@ print("Lottery numbers: \(lotteryNumber1), \(lotteryNumber2)")
 
 ## See Also
 
+- ``VRF``
 - ``VRFSeed``
-- ``VRFSigningKey`` 
+- ``VRFSigningKey``
 - ``VRFVerifyingKey``
 - ``VRFProof``
 - ``VRFOutput``

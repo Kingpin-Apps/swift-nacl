@@ -197,10 +197,10 @@ public struct CryptoSecretStream {
     /**
      Explicitly changes the encryption key in the stream.
      
-      - Note:Normally the stream is re-keyed as needed or an explicit ``tag`` of
-     :data:`.crypto_secretstream_xchacha20poly1305_TAG_REKEY` is added to a
-     message to ensure forward secrecy, but this method can be used instead
-     if the re-keying is controlled without adding the tag.
+     - Note: Normally the stream is re-keyed as needed, or a message is pushed
+     with the `tag` set to ``CryptoSecretStream/xchacha20poly1305TagRekey`` to ensure forward
+     secrecy. This method can be used instead when re-keying is coordinated
+     without adding the tag.
     
      - Parameters:
        - state: A secretstream state object.

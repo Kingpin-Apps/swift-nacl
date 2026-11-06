@@ -6,6 +6,8 @@ Best practices and security considerations for using SwiftNaCl safely and secure
 
 SwiftNaCl provides powerful cryptographic primitives, but they must be used correctly to maintain security. This guide covers essential security practices, common pitfalls, and recommended patterns for secure applications.
 
+Some examples below call helper functions or error types that belong to your application (for example `getStoredHash(for:)` or `ValidationError`). Those are placeholders; every SwiftNaCl call shown is part of the library's API.
+
 ## General Security Principles
 
 ### Defense in Depth
@@ -14,20 +16,25 @@ Never rely on a single security measure. Layer multiple security controls:
 
 ```swift
 // ✅ Good: Multiple layers of security
-func secureProcess(data: Data, password: String) throws -> Data {
+func secureProcess(data: Data, password: Data) throws -> Data {
     // 1. Validate input
     guard !data.isEmpty else { throw ValidationError.emptyData }
-    
-    // 2. Derive key from password using strong KDF
-    let salt = random(size: 32)
-    let key = try derivedKey(from: password, salt: salt)
-    
+
+    // 2. Derive a 32-byte key from the password using a strong KDF
+    //    (kdf uses the sensitive ops and memory limits by default)
+    let argon2id = Argon2id()
+    let salt = random(size: argon2id.saltBytes) // 16 bytes
+    let key = try argon2id.kdf(size: 32, password: password, salt: salt)
+
     // 3. Encrypt with authenticated encryption
-    let secretBox = try SecretBox(key: key)
-    let encrypted = try secretBox.encrypt(plaintext: data)
-    
-    // 4. Return salt + encrypted data for later decryption
-    return salt + encrypted.combined
+    let aead = Sodium().cryptoAead
+    let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
+    let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
+        message: data, aad: nil, nonce: nonce, key: key
+    )
+
+    // 4. Return salt + nonce + ciphertext for later decryption
+    return salt + nonce + ciphertext
 }
 ```
 
@@ -37,15 +44,20 @@ When operations fail, ensure the failure doesn't leak sensitive information:
 
 ```swift
 // ✅ Good: Secure error handling
-func authenticate(username: String, password: String) -> Bool {
+let pwHash = PwHash()
+
+// A real hash, computed once, so unknown users take as long as known ones
+let dummyHash = try Argon2id().str(password: Data("dummy-password".utf8))
+
+func authenticate(username: String, password: Data) -> Bool {
     guard let storedHash = getStoredHash(for: username) else {
         // Still perform password hashing to prevent timing attacks
-        _ = try? PwHash.scryptVerify(hash: "dummy", password: password)
+        _ = try? pwHash.verify(passwordHash: dummyHash, password: password)
         return false
     }
-    
+
     do {
-        return try PwHash.scryptVerify(hash: storedHash, password: password)
+        return try pwHash.verify(passwordHash: storedHash, password: password)
     } catch {
         return false
     }
@@ -84,7 +96,7 @@ func storeKeyInKeychain(key: Data, identifier: String) -> Bool {
         kSecValueData as String: key,
         kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     ]
-    
+
     let status = SecItemAdd(query as CFDictionary, nil)
     return status == errSecSuccess
 }
@@ -96,8 +108,9 @@ For server applications, use environment variables:
 
 ```swift
 func loadKeyFromEnvironment(name: String) throws -> Data {
-    guard let hexString = ProcessInfo.processInfo.environment[name],
-          let keyData = Data(hexString: hexString) else {
+    // Expects the key as a Base64 string
+    guard let encoded = ProcessInfo.processInfo.environment[name],
+          let keyData = Data(base64Encoded: encoded) else {
         throw KeyError.notFound
     }
     return keyData
@@ -107,12 +120,12 @@ func loadKeyFromEnvironment(name: String) throws -> Data {
 
 ## Random Number Generation
 
-SwiftNaCl uses cryptographically secure random number generation. Always use the provided functions:
+``random(size:)`` and the `generate()` methods use the system's cryptographically secure random number generator. Always use them for keys, nonces and salts:
 
 ```swift
-// ✅ Good: Use SwiftNaCl's secure RNG
+// ✅ Good: Use a secure random number generator
 let nonce = random(size: 24)
-let salt = random(size: 32)
+let salt = random(size: 16)
 let seed = VRFSeed.generate()
 
 // ❌ Bad: Don't use predictable sources
@@ -121,38 +134,38 @@ let seed = VRFSeed.generate()
 
 ## Memory Security
 
-### Automatic Cleanup
+### No Automatic Zeroing
 
-SwiftNaCl automatically cleans up sensitive memory, but understand the limitations:
+SwiftNaCl stores keys, seeds and other secrets in ordinary `Data` values. It does not currently zero this memory when a key object is released, and accessors such as ``SigningKey/bytes`` return copies:
 
 ```swift
-func processSecret(data: Data) {
-    var signingKey = try SigningKey.generate()
-    // Key material is automatically zeroed when signingKey goes out of scope
-    
-    // However, be careful with copies
-    let keyData = signingKey.bytes // This creates a copy!
-    // keyData won't be automatically zeroed
+func processSecret() throws {
+    let signingKey = try SigningKey.generate()
+
+    // This is a copy of the 32-byte seed; it is not zeroed for you
+    let keyData = signingKey.bytes
 }
 ```
 
+Keep secrets in memory only as long as you need them, and avoid making unnecessary copies.
+
 ### Manual Cleanup
 
-For additional security, manually zero sensitive data:
+For additional security, manually zero sensitive data you own:
 
 ```swift
 func secureProcess() {
     var password = "secret".data(using: .utf8)!
     defer {
         // Zero out password data
-        password.withUnsafeMutableBytes { bytes in
-            bytes.bindMemory(to: UInt8.self).initialize(repeating: 0)
-        }
+        password.resetBytes(in: 0..<password.count)
     }
-    
+
     // Use password...
 }
 ```
+
+Swift may copy `Data` values, so manual zeroing reduces exposure but cannot guarantee that no other copy remains.
 
 ### Avoid String Interpolation
 
@@ -160,27 +173,34 @@ Don't accidentally leak sensitive data in logs:
 
 ```swift
 // ❌ Bad: Sensitive data might be logged
-print("Processing with key: \(signingKey)")
+print("Processing with key: \(signingKey.bytes)")
 
-// ✅ Good: Use fingerprints or omit sensitive data
-print("Processing with key fingerprint: \(signingKey.fingerprint())")
+// ✅ Good: Identify keys by their public half, never the secret half
+print("Processing with key: \(bytesAsString(bytesIn: signingKey.verifyKey.bytes))")
 ```
 
 ## Encryption Best Practices
 
 ### Always Use Authenticated Encryption
 
-Use AEAD constructions that provide both confidentiality and integrity:
+Use constructions that provide both confidentiality and integrity. Both ``CryptoAead`` and ``CryptoBox`` authenticate the ciphertext, so decryption fails if it has been changed:
 
 ```swift
-// ✅ Good: Authenticated encryption
-let secretBox = try SecretBox(key: key)
-let encrypted = try secretBox.encrypt(plaintext: data)
+let aead = Sodium().cryptoAead
 
-// ✅ Also good: AEAD with additional data
-let aead = try Aead(key: key)
+// ✅ Good: Authenticated encryption
+let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
+let encrypted = try aead.xchacha20poly1305IetfEncrypt(
+    message: data, aad: nil, nonce: nonce, key: key
+)
+
+// ✅ Also good: AEAD with additional data, which is authenticated but not encrypted
 let metadata = "file_v1".data(using: .utf8)!
-let encrypted = try aead.encrypt(plaintext: data, aad: metadata)
+let nonce2 = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
+let encryptedWithMetadata = try aead.xchacha20poly1305IetfEncrypt(
+    message: data, aad: metadata, nonce: nonce2, key: key
+)
+// Decryption must pass the same metadata as `aad`
 ```
 
 ### Unique Nonces
@@ -188,33 +208,42 @@ let encrypted = try aead.encrypt(plaintext: data, aad: metadata)
 Never reuse nonces with the same key:
 
 ```swift
-class SecureStorage {
+final class SecureStorage {
     private let key: Data
-    private var nonceCounter: UInt64 = 0
-    
+    private let aead = Sodium().cryptoAead
+
+    init(key: Data) {
+        self.key = key
+    }
+
     func encrypt(data: Data) throws -> Data {
-        // Generate unique nonce
-        let nonce = random(size: 24)  // Better: use counter + random
-        
-        let secretBox = try SecretBox(key: key)
-        return try secretBox.encrypt(plaintext: data, nonce: nonce).combined
+        // XChaCha20-Poly1305 has 24-byte nonces, which are large enough
+        // to be chosen at random for every message
+        let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
+
+        let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
+            message: data, aad: nil, nonce: nonce, key: key
+        )
+        return nonce + ciphertext
     }
 }
 ```
+
+With the 12-byte nonces of `chacha20poly1305IetfEncrypt(message:aad:nonce:key:)`, random nonces are not safe for large numbers of messages; use a counter instead, or prefer XChaCha20-Poly1305.
 
 ## Digital Signatures
 
 ### Verify Before Using
 
-Always verify signatures before trusting signed data:
+Always verify signatures before trusting signed data. ``VerifyKey/verify(smessage:signature:encoder:)`` throws if the signature is not valid and returns the message only when it is:
 
 ```swift
-func processSignedDocument(signedData: Data, publicKey: VerifyKey) throws -> Document {
+func processSignedDocument(signedData: Data, verifyKey: VerifyKey) throws -> Data {
     // Verify signature first
-    let verifiedData = try publicKey.verify(smessage: signedData)
-    
+    let verifiedData = try verifyKey.verify(smessage: signedData)
+
     // Only then process the verified data
-    return try Document(data: verifiedData)
+    return verifiedData
 }
 ```
 
@@ -224,13 +253,13 @@ For large documents, use detached signatures:
 
 ```swift
 func createDetachedSignature(document: Data, signingKey: SigningKey) throws -> Data {
-    let signature = try signingKey.sign(message: document)
-    return signature.getSignature // Return only the signature part
+    let signedMessage = try signingKey.sign(message: document)
+    return signedMessage.getSignature // Return only the 64-byte signature
 }
 
-func verifyDetachedSignature(document: Data, signature: Data, publicKey: VerifyKey) throws -> Bool {
+func verifyDetachedSignature(document: Data, signature: Data, verifyKey: VerifyKey) -> Bool {
     do {
-        _ = try publicKey.verify(smessage: document, signature: signature)
+        _ = try verifyKey.verify(smessage: document, signature: signature)
         return true
     } catch {
         return false
@@ -240,41 +269,47 @@ func verifyDetachedSignature(document: Data, signature: Data, publicKey: VerifyK
 
 ## Password Handling
 
-### Use Strong Key Derivation
+### Use Strong Password Hashing
 
-Always use proper password hashing for authentication:
+Always use proper password hashing for authentication. ``Argon2id/str(password:opsLimit:memLimit:)`` uses the interactive limits by default and returns the encoded hash as `Data` (a fixed-size buffer padded with zero bytes), which you store as-is:
 
 ```swift
 // ✅ Good: Use Argon2id for password hashing
-func hashPassword(_ password: String) throws -> String {
-    return try PwHash.str(
-        passwd: password,
-        opsLimit: PwHash.OpsLimitInteractive,
-        memLimit: PwHash.MemLimitInteractive
+let argon2id = Argon2id()
+
+func hashPassword(_ password: Data) throws -> Data {
+    return try argon2id.str(
+        password: password,
+        opsLimit: argon2id.opsLimitInteractive,
+        memLimit: argon2id.memLimitInteractive
     )
 }
 
-func verifyPassword(_ password: String, hash: String) -> Bool {
-    return (try? PwHash.strVerify(hash: hash, passwd: password)) ?? false
+func verifyPassword(_ password: Data, hash: Data) -> Bool {
+    return (try? argon2id.verify(passwordHash: hash, password: password)) ?? false
 }
 ```
+
+``PwHash/verify(passwordHash:password:)`` can verify Argon2i, Argon2id and scrypt hashes, choosing the algorithm from the hash prefix.
 
 ### Secure Password Derivation
 
-Use proper KDF for deriving encryption keys from passwords:
+Use a proper KDF for deriving encryption keys from passwords. The salt must be ``Argon2id/saltBytes`` (16) bytes long, random, and stored alongside the encrypted data:
 
 ```swift
-func deriveKeyFromPassword(_ password: String, salt: Data) throws -> Data {
-    return try PwHash.kdf(
-        outputLength: 32,
-        passwd: password,
+func deriveKeyFromPassword(_ password: Data, salt: Data) throws -> Data {
+    let argon2id = Argon2id()
+    return try argon2id.kdf(
+        size: 32,
+        password: password,
         salt: salt,
-        opsLimit: PwHash.OpsLimitSensitive,
-        memLimit: PwHash.MemLimitSensitive,
-        alg: PwHash.Algorithm.argon2id
+        opsLimit: argon2id.opsLimitSensitive,
+        memLimit: argon2id.memLimitSensitive
     )
 }
 ```
+
+The sensitive limits are also the default when you omit `opsLimit` and `memLimit`. They use 1 GiB of memory, so they can be slow or fail on memory-constrained devices. Use the moderate or interactive limits where that matters.
 
 ## VRF Security
 
@@ -285,27 +320,26 @@ VRF signing keys must be kept strictly confidential:
 ```swift
 // ✅ Good: Generate keys securely and protect them
 let vrfKeyPair = VRFKeyPair.generate()
-try storeKeySecurely(vrfKeyPair.signingKey)
+try storeKeySecurely(vrfKeyPair.signingKey.seed.bytes)
 
 // Only share the verifying key publicly
 let publicKey = vrfKeyPair.verifyingKey
 ```
 
-### Validate VRF Inputs
+The signing key can be rebuilt from its 32-byte seed with ``VRFKeyPair/from(seed:)``, so the seed is as sensitive as the key itself.
 
-Always validate VRF inputs to prevent attacks:
+### Verify Proofs You Receive
+
+``VRFProof/hash()`` extracts the output from a proof without checking it. When a proof comes from someone else, always use ``VRFVerifyingKey/verify(message:proof:)`` with their verifying key:
 
 ```swift
-func generateVRFOutput(input: Data, signingKey: VRFSigningKey) throws -> VRFOutput {
-    // Validate input size/format
-    guard input.count <= 10000 else {
-        throw VRFError.invalidInputSize
-    }
-    
-    let proof = try signingKey.prove(message: input)
-    return try proof.hash()
+func acceptVRFOutput(input: Data, proof: VRFProof, from verifyingKey: VRFVerifyingKey) throws -> VRFOutput {
+    // Throws VRFError.verificationFailed if the proof does not match the key and input
+    return try verifyingKey.verify(message: input, proof: proof)
 }
 ```
+
+VRF messages can be any length. Validate the input format your protocol expects before you prove or verify it.
 
 
 ## Network Security
@@ -316,22 +350,36 @@ Always use TLS for network communication, but add application-layer encryption f
 
 ```swift
 struct SecureMessage {
+    let nonce: Data
     let encryptedPayload: Data
     let signature: Data
-    let publicKey: Data
-    
-    static func create(message: Data, recipientKey: PublicKey, senderKey: SigningKey) throws -> SecureMessage {
+    let senderVerifyKey: Data
+
+    static func create(
+        message: Data,
+        recipientKey: PublicKey,
+        senderEncryptionKey: PrivateKey,
+        senderSigningKey: SigningKey
+    ) throws -> SecureMessage {
+        let box = Sodium().cryptoBox
+
         // Encrypt for recipient
-        let box = try Box(privateKey: /* sender's private key */, publicKey: recipientKey)
-        let encrypted = try box.encrypt(plaintext: message)
-        
-        // Sign the encrypted message
-        let signature = try senderKey.sign(message: encrypted.combined)
-        
+        let nonce = random(size: Int(box.nonceBytes))
+        let encrypted = try box.easy(
+            message: message,
+            nonce: nonce,
+            publicKey: recipientKey.toBytes(),
+            secretKey: senderEncryptionKey.toBytes()
+        )
+
+        // Sign the nonce and encrypted message
+        let signedMessage = try senderSigningKey.sign(message: nonce + encrypted)
+
         return SecureMessage(
-            encryptedPayload: encrypted.combined,
-            signature: signature.getCombined,
-            publicKey: senderKey.verifyKey.bytes
+            nonce: nonce,
+            encryptedPayload: encrypted,
+            signature: signedMessage.getSignature,
+            senderVerifyKey: senderSigningKey.verifyKey.bytes
         )
     }
 }
@@ -345,12 +393,18 @@ struct SecureMessage {
 // ❌ Bad: Reusing keys across different contexts
 let masterKey = random(size: 32)
 let encryptionKey = masterKey  // Don't reuse directly
-let signingKey = masterKey     // Definitely don't do this
+let macKey = masterKey         // Definitely don't do this
 
 // ✅ Good: Derive different keys for different purposes
-let masterKey = random(size: 32)
-let encryptionKey = try deriveKey(masterKey, context: "encryption")
-let macKey = try deriveKey(masterKey, context: "authentication")
+// (keyed BLAKE2b, using the master key as the key and the purpose as the input)
+let hash = Hash()
+let rootKey = random(size: 32)
+let derivedEncryptionKey = try hash.blake2b(
+    data: Data("encryption".utf8), digestSize: 32, key: rootKey, encoder: RawEncoder.self
+)
+let derivedMacKey = try hash.blake2b(
+    data: Data("authentication".utf8), digestSize: 32, key: rootKey, encoder: RawEncoder.self
+)
 ```
 
 ### 2. Information Leakage
@@ -373,24 +427,22 @@ func decryptFile(path: String, key: Data) throws -> Data {
 ```
 
 ### 3. Side-Channel Attacks
+
+Comparing secrets with `==` can stop at the first differing byte, which leaks timing information. Use the constant-time comparison from ``CryptoUtils`` instead:
+
 ```swift
-// ❌ Bad: Branching on secret data
-func processSecret(secret: Data, threshold: UInt8) {
-    if secret[0] > threshold {  // Timing leak
-        // Process one way
-    } else {
-        // Process another way
-    }
+// ❌ Bad: Early-exit comparison of secret values
+func tagsMatch(_ expected: Data, _ received: Data) -> Bool {
+    return expected == received  // Timing leak
 }
 
-// ✅ Good: Constant-time processing
-func processSecret(secret: Data, threshold: UInt8) {
-    let mask = constantTimeGreater(secret[0], threshold)
-    let result1 = processWay1(secret)
-    let result2 = processWay2(secret)
-    return constantTimeSelect(mask, result1, result2)
+// ✅ Good: Constant-time comparison
+func tagsMatch(_ expected: Data, _ received: Data) -> Bool {
+    return Sodium().utils.sodiumMemcmp(expected, received)
 }
 ```
+
+Also avoid branching on secret data in your own code.
 
 ## Security Checklist
 
@@ -410,7 +462,7 @@ Before deploying applications using SwiftNaCl:
 
 ## Getting Security Help
 
-- Review the [libsodium documentation](https://libsodium.gitbook.io/) for cryptographic details
+- Review the [libsodium documentation](https://doc.libsodium.org/) for cryptographic details
 - Consider professional security audits for high-stakes applications
 - Stay updated with security advisories and update SwiftNaCl regularly
 - Follow secure coding practices specific to your platform (iOS, macOS, Linux)

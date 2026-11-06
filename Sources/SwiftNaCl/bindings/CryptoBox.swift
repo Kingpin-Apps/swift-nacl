@@ -38,8 +38,8 @@ public struct CryptoBox {
         return (Data(pk.prefix(Int(publicKeyBytes))), Data(sk.prefix(Int(secretKeyBytes))))
     }
 
-    /// Returns a (public, secret) key pair deterministically generated from an input ``seed``.
-    /// - Warning: The seed **must** be high-entropy; therefore, its generator **must** be a cryptographic quality random function like, for example, :func:`utils.random`.
+    /// Returns a (public, secret) key pair deterministically generated from an input `seed`.
+    /// - Warning: The seed **must** be high-entropy; therefore, its generator **must** be a cryptographic quality random function like, for example, ``random(size:)``.
     /// - Warning: The seed **must** be protected and remain secret. Anyone who knows the seed is really in possession of the corresponding PrivateKey.
     /// - Parameters:
     ///     - seed: `Data`
@@ -77,7 +77,7 @@ public struct CryptoBox {
         return (Data(pk.prefix(Int(publicKeyBytes))), Data(sk.prefix(Int(secretKeyBytes))))
     }
 
-    /// Encrypts and returns a message ``message`` using the secret key ``sk``, public key ``pk``, and the nonce ``nonce``.
+    /// Encrypts and returns `message` using the secret key `secretKey`, the public key `publicKey`, and the nonce `nonce`.
     ///
     /// - Parameters:
     ///    - message: `Data`
@@ -140,7 +140,7 @@ public struct CryptoBox {
         return ciphertext.dropFirst(boxZeroBytes)
     }
 
-    /// Decrypts and returns an encrypted message ``ciphertext``, using the secret key ``sk``, public key ``pk``, and the nonce ``nonce``.
+    /// Decrypts and returns the encrypted message `ciphertext`, using the secret key `secretKey`, the public key `publicKey`, and the nonce `nonce`.
     ///
     /// - Parameters:
     ///    - ciphertext: `Data`
@@ -208,7 +208,7 @@ public struct CryptoBox {
         return plaintext.dropFirst(zeroBytes)
     }
 
-    /// Computes and returns the shared key for the public key ``pk`` and the secret key ``sk``. This can be used to speed up operations where the same set of keys is going to be used multiple times.
+    /// Computes and returns the shared key for the public key `publicKey` and the secret key `secretKey`. This can be used to speed up operations where the same set of keys is going to be used multiple times.
     ///
     /// - Parameters:
     ///    - publicKey: `Data`
@@ -252,7 +252,7 @@ public struct CryptoBox {
         return Data(sharedKey.prefix(beforeNmBytes))
     }
 
-    /// Encrypts and returns the message ``message`` using the shared key ``k`` and the nonce ``nonce``.
+    /// Encrypts and returns `message` using the shared key `sharedKey` and the nonce `nonce`.
     ///
     /// - Parameters:
     ///    - message: `Data`
@@ -303,15 +303,15 @@ public struct CryptoBox {
         return ciphertext.dropFirst(boxZeroBytes)
     }
 
-    /// Decrypts and returns the encrypted message ``ciphertext``, using the shared key ``k`` and the nonce ``nonce``.
+    /// Decrypts and returns the encrypted message `ciphertext`, using the shared key `sharedKey` and the nonce `nonce`.
     ///
     /// - Parameters:
     ///   - ciphertext: `Data`
     ///   - nonce: `Data`
     ///   - sharedKey: `Data`
     ///
-    /// - Returns: A tuple containing the public key and secret key.
-    /// - Throws: Raises a `SodiumError` if keypair generation fails.
+    /// - Returns: The decrypted message.
+    /// - Throws: Raises a `SodiumError` if input is invalid or the message cannot be authenticated.
     public func openAfternm(ciphertext: Data, nonce: Data, sharedKey: Data) throws -> Data {
         try ensure(
             nonce.count == nonceBytes,
@@ -360,13 +360,13 @@ public struct CryptoBox {
         return plaintext.dropFirst(zeroBytes)
     }
 
-    /// Encrypts and returns a message ``message`` using the secret key ``sk``, public key ``pk``, and the nonce ``nonce``.
+    /// Encrypts and returns `message` using the secret key `secretKey`, the public key `publicKey`, and the nonce `nonce`.
     ///
     /// - Parameters:
     ///   - message: `Data`
     ///   - nonce: `Data`
     ///   - publicKey: `Data`
-    ///   - secretKey
+    ///   - secretKey: `Data`
     ///
     /// - Returns: The encrypted message.
     /// - Throws: Raises a `SodiumError` if input is invalid.
@@ -424,7 +424,7 @@ public struct CryptoBox {
         return ciphertext
     }
 
-    /// Decrypts and returns an encrypted message ``ciphertext``, using the secret key ``sk``, public key ``pk``, and the nonce ``nonce``.
+    /// Decrypts and returns the encrypted message `ciphertext`, using the secret key `secretKey`, the public key `publicKey`, and the nonce `nonce`.
     ///
     /// - Parameters:
     ///     - ciphertext: `Data`
@@ -498,7 +498,7 @@ public struct CryptoBox {
         return plaintext
     }
 
-    /// Encrypts and returns the message ``message`` using the shared key ``k`` and the nonce ``nonce``.
+    /// Encrypts and returns `message` using the shared key `sharedKey` and the nonce `nonce`.
     ///
     /// - Parameters:
     ///    - message: `Data`
@@ -551,7 +551,7 @@ public struct CryptoBox {
         return ciphertext
     }
 
-    /// Decrypts and returns the encrypted message ``ciphertext``, using the shared key ``k`` and the nonce ``nonce``.
+    /// Decrypts and returns the encrypted message `ciphertext`, using the shared key `sharedKey` and the nonce `nonce`.
     ///
     /// - Parameters:
     ///  - ciphertext: `Data`
@@ -610,8 +610,8 @@ public struct CryptoBox {
         return plaintext
     }
 
-    /// Encrypts and returns a message ``message`` using an ephemeral secret key and the public key ``pk``.
-    /// The ephemeral public key, which is embedded in the sealed box, is also used, in combination with ``pk``, to derive the nonce needed for the underlying box construct.
+    /// Encrypts and returns `message` using an ephemeral secret key and the recipient's public key `publicKey`.
+    /// The ephemeral public key, which is embedded in the sealed box, is also used, in combination with `publicKey`, to derive the nonce needed for the underlying box construct.
     ///
     /// - Parameters:
     ///   - message: `Data`
@@ -654,7 +654,7 @@ public struct CryptoBox {
         return ciphertext
     }
 
-    /// Decrypts and returns an encrypted message ``ciphertext``, using the recipient's secret key ``sk`` and the sender's ephemeral public key embedded in the sealed box. The box construct nonce is derived from the recipient's public key ``pk`` and the sender's public key.
+    /// Decrypts and returns the encrypted message `ciphertext`, using the recipient's secret key `secretKey` and the sender's ephemeral public key embedded in the sealed box. The box construct nonce is derived from the recipient's public key `publicKey` and the sender's ephemeral public key.
     ///
     /// - Parameters:
     ///  - ciphertext: `Data`

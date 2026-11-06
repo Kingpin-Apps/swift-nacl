@@ -4,21 +4,32 @@ A Swift binding to the libsodium library providing modern cryptographic primitiv
 
 ## Overview
 
-SwiftNaCl provides a Swift interface to the libsodium cryptographic library, offering state-of-the-art cryptographic primitives with a focus on usability, security, and performance. The library includes support for digital signatures, public-key encryption, secret-key encryption, cryptographic hashing, verifiable random functions (VRF), and more.
+SwiftNaCl provides a Swift interface to the libsodium cryptographic library, offering state-of-the-art cryptographic primitives with a focus on usability, security, and performance. The library includes support for digital signatures, public-key encryption, authenticated secret-key encryption, cryptographic hashing, password hashing, verifiable random functions (VRF), and more.
+
+SwiftNaCl is built on [IntersectMBO/libsodium](https://github.com/IntersectMBO/libsodium), the Cardano fork of libsodium that adds the VRF primitives. Apple platforms use the bundled `Clibsodium.xcframework`; Linux and Android compile the same fork from vendored source. You do not need to install libsodium separately, and a system libsodium will not provide the VRF functions.
+
+The API has two layers:
+
+- **High-level types** such as ``SigningKey``, ``SealedBox``, ``Hash``, ``Argon2id`` and the VRF types, which wrap keys and common operations.
+- **Low-level bindings** reached through ``Sodium``, such as `Sodium().cryptoAead` or `Sodium().cryptoBox`, which map closely to the libsodium C functions and work with raw `Data`.
 
 ### Key Features
 
 - **Digital Signatures**: Ed25519 signing and verification
-- **Secret-key Encryption**: XSalsa20-Poly1305 and XChacha20-Poly1305 AEAD
-- **Public-key Encryption**: Curve25519 key exchange with authenticated encryption
-- **Cryptographic Hashing**: SHA-256, SHA-512, BLAKE2b, SipHash variants
-- **Verifiable Random Functions (VRF)**: IETF Draft 03 specification with Ed25519
-- **Message Authentication**: Poly1305 MAC
-- **Key Derivation**: Password-based and deterministic key generation
-- **Cross-platform**: Works on Apple platforms and Linux
-- **Memory Safe**: Secure memory handling with automatic cleanup
+- **Public-key Encryption**: Curve25519 authenticated encryption (XSalsa20-Poly1305) and anonymous sealed boxes
+- **Secret-key Encryption**: ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD, plus XChaCha20-Poly1305 secret streams
+- **Cryptographic Hashing**: SHA-256, SHA-512, BLAKE2b (optionally keyed), SipHash-2-4 and its 128-bit variant
+- **Password Hashing and Key Derivation**: Argon2i, Argon2id and scrypt
+- **Verifiable Random Functions (VRF)**: IETF draft 03 (draft-irtf-cfrg-vrf-03) with Ed25519
+- **Deterministic Key Generation**: Keys and random bytes derived from a seed
+- **Cross-platform**: Apple platforms, Linux and Android
 
 ## Topics
+
+### Essentials
+
+- <doc:GettingStarted>
+- <doc:SecurityGuide>
 
 ### Digital Signatures
 
@@ -31,58 +42,70 @@ SwiftNaCl provides a Swift interface to the libsodium cryptographic library, off
 - ``PrivateKey``
 - ``PublicKey``
 - ``KeyPair``
-- ``Box``
 - ``SealedBox``
-
-### Secret-key Encryption
-
-- ``SecretBox``
-- ``Aead``
+- ``Box``
 - ``EncryptedMessage``
 
 ### Verifiable Random Functions
 
+- <doc:VerifiableRandomFunctions>
+- ``VRF``
 - ``VRFSeed``
 - ``VRFSigningKey``
 - ``VRFVerifyingKey``
 - ``VRFProof``
 - ``VRFOutput``
 - ``VRFKeyPair``
-- ``VRFError``
 
 ### Cryptographic Hashing
 
 - ``Hash``
 - ``Blake2b``
+- ``Hashlib``
+
+### Password Hashing
+
+- ``PwHash``
+- ``Argon2``
+- ``Argon2i``
+- ``Argon2id``
+- ``Scrypt``
 
 ### Encoding and Utilities
 
 - ``Encoder``
 - ``RawEncoder``
 - ``HexEncoder``
-- ``Base64Encoder``
 - ``Base32Encoder``
+- ``Base64Encoder``
 - ``URLSafeBase64Encoder``
+- ``random(size:)``
+- ``randomBytesDeterministic(size:seed:encoder:)``
+- ``bytesAsString(bytesIn:)``
 
-### Password Hashing
+### Low-level libsodium Bindings
 
-- ``PwHash``
-- ``Scrypt``
-- ``Argon2i``
-- ``Argon2id``
+- ``Sodium``
+- ``CryptoAead``
+- ``CryptoBox``
+- ``CryptoSecretStream``
+- ``CryptoSecretstreamXchacha20poly1305State``
+- ``CryptoSign``
+- ``CryptoSignEd25519phState``
+- ``CryptoHash``
+- ``CryptoGenericHash``
+- ``Blake2State``
+- ``CryptoShortHash``
+- ``CryptoPwHash``
+- ``CryptoScalarmult``
+- ``CryptoCore``
+- ``RandomBytes``
+- ``CryptoUtils``
+- ``Version``
+- ``Lib``
 
 ### Error Handling
 
 - ``SodiumError``
 - ``VRFError``
-
-## Articles and Guides
-
-### Getting Started
-
-- <doc:GettingStarted>
-- <doc:VerifiableRandomFunctions>
-
-### Security and Best Practices
-
-- <doc:SecurityGuide>
+- ``ensure(_:raising:)``

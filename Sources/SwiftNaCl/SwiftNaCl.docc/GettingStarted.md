@@ -10,15 +10,15 @@ SwiftNaCl is a modern Swift binding to the libsodium cryptographic library. This
 
 ### Swift Package Manager
 
-Add SwiftNaCl to your project using Swift Package Manager:
+Add SwiftNaCl to your project using Swift Package Manager. The package needs Swift 6.0 or later.
 
 #### Using Xcode
 
 1. Open your project in Xcode
-2. Select `File` → `Swift Packages` → `Add Package Dependency`
-3. Enter the repository URL: `https://github.com/Kingpin-Apps/swift-ncal.git`
+2. Select `File` → `Add Package Dependencies…`
+3. Enter the repository URL: `https://github.com/Kingpin-Apps/swift-nacl.git`
 4. Choose the version or branch you want to use
-5. Import both `SwiftNaCl` and `Clibsodium` in your project
+5. Add the `SwiftNaCl` library to your target
 
 #### Using Package.swift
 
@@ -26,17 +26,19 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Kingpin-Apps/swift-ncal.git", from: "0.1.4")
+    .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "1.0.0")
 ],
 targets: [
     .target(
         name: "YourTarget",
         dependencies: [
-            .product(name: "SwiftNaCl", package: "swift-ncal")
+            .product(name: "SwiftNaCl", package: "swift-nacl")
         ]
     )
 ]
 ```
+
+The package also vends a `Clibsodium` library with the raw C functions. You only need it if you want to call libsodium directly.
 
 ## Basic Usage
 
@@ -68,19 +70,24 @@ print(String(data: verifiedMessage, encoding: .utf8)!) // "Hello, SwiftNaCl!"
 
 ## Core Concepts
 
-### Memory Safety
+### High-level Types and Low-level Bindings
 
-SwiftNaCl automatically handles secure memory cleanup for sensitive data. Private keys and other sensitive materials are automatically zeroed when they're no longer needed.
+SwiftNaCl has two layers. High-level types such as ``SigningKey``, ``SealedBox``, ``Hash`` and ``VRFKeyPair`` wrap keys and common operations. The low-level bindings are reached through ``Sodium`` (for example `Sodium().cryptoAead` or `Sodium().cryptoBox`) and work directly with raw `Data`, close to the libsodium C API. Some features, such as authenticated secret-key encryption, are currently only available through the low-level bindings.
 
 ### Error Handling
 
-SwiftNaCl uses Swift's error handling mechanism. Always wrap cryptographic operations in do-catch blocks:
+SwiftNaCl uses Swift's error handling mechanism. Operations that can fail throw a ``SodiumError`` (or a ``VRFError`` for VRF operations), so wrap them in do-catch blocks:
 
 ```swift
 do {
     let keyPair = KeyPair.generate()
-    let encrypted = try keyPair.publicKey.encrypt(message: data)
-    let decrypted = try keyPair.secretKey.decrypt(ciphertext: encrypted.combined)
+    let data = "Top secret".data(using: .utf8)!
+
+    // Anyone with the public key can encrypt...
+    let encrypted = try SealedBox(recipientKey: keyPair.publicKey).encrypt(plaintext: data)
+
+    // ...but only the private key holder can decrypt
+    let decrypted = try SealedBox(recipientKey: keyPair.secretKey).decrypt(ciphertext: encrypted)
 } catch {
     print("Cryptographic operation failed: \(error)")
 }
@@ -88,7 +95,7 @@ do {
 
 ### Thread Safety
 
-All SwiftNaCl types conform to `Sendable` and are designed to be thread-safe. You can safely use them across multiple threads and in concurrent environments.
+The VRF types (``VRFSeed``, ``VRFSigningKey``, ``VRFVerifyingKey``, ``VRFProof``, ``VRFOutput`` and ``VRFKeyPair``) are immutable value types that conform to `Sendable`. The other types, such as ``SigningKey``, ``PrivateKey`` and ``Box``, are classes that do not conform to `Sendable`. Create them where you use them, or protect shared instances yourself, for example with an actor.
 
 ## Common Use Cases
 
@@ -99,68 +106,93 @@ Perfect for ensuring message authenticity and integrity:
 ```swift
 // Key generation
 let signingKey = try SigningKey.generate()
-let publicKey = signingKey.verifyKey
+let verifyKey = signingKey.verifyKey
 
 // Signing
 let document = "Important document".data(using: .utf8)!
-let signature = try signingKey.sign(message: document)
+let signedMessage = try signingKey.sign(message: document)
 
-// Verification
-let verifiedData = try publicKey.verify(smessage: signature.getCombined)
-// verifiedData contains the original document if signature is valid
+// Verification (throws if the signature is not valid)
+let verifiedData = try verifyKey.verify(smessage: signedMessage.getCombined)
+// verifiedData contains the original document
 ```
 
 ### 2. Secret-Key Encryption
 
-For encrypting data with a shared secret:
+For encrypting data with a shared secret, use XChaCha20-Poly1305 authenticated encryption from the low-level ``CryptoAead`` binding:
 
 ```swift
-// Generate a random key (keep this secret!)
-let key = random(size: 32)
-let secretBox = try SecretBox(key: key)
+let aead = Sodium().cryptoAead
+
+// Generate a random 32-byte key (keep this secret!)
+let key = random(size: Int(aead.xchacha20poly1305IetfKeyBytes))
+
+// Use a new random 24-byte nonce for every message
+let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
 
 // Encrypt
 let plaintext = "Secret message".data(using: .utf8)!
-let encrypted = try secretBox.encrypt(plaintext: plaintext)
+let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
+    message: plaintext,
+    aad: nil,
+    nonce: nonce,
+    key: key
+)
 
-// Decrypt
-let decrypted = try secretBox.decrypt(ciphertext: encrypted.combined)
+// Decrypt (the nonce is not secret, so store or send it with the ciphertext)
+let decrypted = try aead.xchacha20poly1305IetfDecrypt(
+    ciphertext: ciphertext,
+    aad: nil,
+    nonce: nonce,
+    key: key
+)
 print(String(data: decrypted, encoding: .utf8)!) // "Secret message"
 ```
 
 ### 3. Public-Key Encryption
 
-For secure communication between parties:
+For secure communication between two parties, use the authenticated box from the low-level ``CryptoBox`` binding:
 
 ```swift
-// Alice generates her key pair
+// Alice and Bob each generate a key pair
 let aliceKeyPair = KeyPair.generate()
-
-// Bob generates his key pair
 let bobKeyPair = KeyPair.generate()
 
+let box = Sodium().cryptoBox
+let nonce = random(size: Int(box.nonceBytes))
+
 // Alice encrypts a message for Bob
-let aliceBox = try Box(privateKey: aliceKeyPair.secretKey, publicKey: bobKeyPair.publicKey)
 let message = "Hello Bob!".data(using: .utf8)!
-let encrypted = try aliceBox.encrypt(plaintext: message)
+let ciphertext = try box.easy(
+    message: message,
+    nonce: nonce,
+    publicKey: bobKeyPair.publicKey.toBytes(),
+    secretKey: aliceKeyPair.secretKey.toBytes()
+)
 
 // Bob decrypts the message from Alice
-let bobBox = try Box(privateKey: bobKeyPair.secretKey, publicKey: aliceKeyPair.publicKey)
-let decrypted = try bobBox.decrypt(ciphertext: encrypted.combined)
+let decrypted = try box.openEasy(
+    ciphertext: ciphertext,
+    nonce: nonce,
+    publicKey: aliceKeyPair.publicKey.toBytes(),
+    secretKey: bobKeyPair.secretKey.toBytes()
+)
 print(String(data: decrypted, encoding: .utf8)!) // "Hello Bob!"
 ```
 
+If the recipient does not need to know who sent the message, ``SealedBox`` is simpler: it only needs the recipient's public key, as shown in the error handling example above.
+
 ### 4. Cryptographic Hashing
 
-For data integrity and message authentication:
+For data integrity and message authentication. ``Hash`` returns hex-encoded `Data` by default; pass `encoder: RawEncoder.self` to get the raw digest bytes instead:
 
 ```swift
 let hash = Hash()
 let data = "Data to hash".data(using: .utf8)!
 
-// SHA-256
+// SHA-256 (hex-encoded by default)
 let sha256 = try hash.sha256(message: data)
-print("SHA-256: \(sha256.hexEncodedString())")
+print("SHA-256: \(String(decoding: sha256, as: UTF8.self))")
 
 // BLAKE2b with custom parameters
 let blake2b = try hash.blake2b(
@@ -168,7 +200,10 @@ let blake2b = try hash.blake2b(
     digestSize: 32,
     key: "secret-key".data(using: .utf8)!
 )
-print("BLAKE2b: \(blake2b.hexEncodedString())")
+print("BLAKE2b: \(String(decoding: blake2b, as: UTF8.self))")
+
+// Raw 32-byte digest
+let rawDigest = try hash.sha256(message: data, encoder: RawEncoder.self)
 ```
 
 ### 5. Verifiable Random Functions
@@ -209,7 +244,7 @@ let keyPair = KeyPair.generate()
 
 ### 2. Random Number Generation
 
-SwiftNaCl uses cryptographically secure random number generation by default:
+``random(size:)`` and the `generate()` methods use the system's cryptographically secure random number generator:
 
 ```swift
 // Generate secure random bytes
@@ -226,10 +261,13 @@ Always handle potential errors appropriately:
 
 ```swift
 func secureEncrypt(data: Data, key: Data) -> Data? {
+    let aead = Sodium().cryptoAead
     do {
-        let secretBox = try SecretBox(key: key)
-        let encrypted = try secretBox.encrypt(plaintext: data)
-        return encrypted.combined
+        let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
+        let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
+            message: data, aad: nil, nonce: nonce, key: key
+        )
+        return nonce + ciphertext // Keep the nonce with the ciphertext
     } catch {
         // Log error securely (don't log sensitive data!)
         print("Encryption failed: \(error.localizedDescription)")
@@ -240,50 +278,43 @@ func secureEncrypt(data: Data, key: Data) -> Data? {
 
 ### 4. Secure Cleanup
 
-While SwiftNaCl handles most cleanup automatically, be mindful of sensitive data:
+SwiftNaCl keeps key material in ordinary `Data` values and does not currently zero it when a key is released. Keep secrets in memory only as long as you need them, and clear buffers you own when you are done:
 
 ```swift
-// SwiftNaCl types automatically clean up sensitive data
-var signingKey = try SigningKey.generate()
-// Key material is automatically zeroed when signingKey goes out of scope
-
-// For your own sensitive data, zero it manually
 var sensitiveData = Data("secret".utf8)
 defer {
-    sensitiveData.withUnsafeMutableBytes { bytes in
-        bytes.bindMemory(to: UInt8.self).initialize(repeating: 0)
-    }
+    // Overwrite the bytes with zeros
+    sensitiveData.resetBytes(in: 0..<sensitiveData.count)
 }
 ```
 
+Swift may copy `Data` values, so this reduces exposure but cannot guarantee that no other copy remains in memory.
+
 ## Platform Support
 
-SwiftNaCl works across all Apple platforms and Linux:
+SwiftNaCl works on:
 
-- **iOS** 13.0+
-- **macOS** 10.15+
-- **tvOS** 13.0+
-- **watchOS** 6.0+
-- **visionOS** 1.0+
-- **Linux** (Ubuntu 18.04+)
+- **iOS**, **macOS**, **Mac Catalyst**, **tvOS**, **watchOS** and **visionOS**, using the bundled `Clibsodium.xcframework`
+- **Linux** and **Android** (x86_64 and aarch64), compiling libsodium from vendored source
 
-The library automatically uses optimized implementations for each platform.
+WebAssembly (WASI) is not currently supported.
 
 ## Next Steps
 
 Now that you understand the basics, explore more advanced features:
 
 - **<doc:VerifiableRandomFunctions>** for blockchain and cryptographic protocols
-- **Password hashing** with Argon2 and Scrypt for secure authentication
-- **Key derivation** for generating multiple keys from a single seed
-- **Advanced encryption** with authenticated encryption and additional data (AEAD)
+- **<doc:SecurityGuide>** for security practices and common pitfalls
+- **Password hashing** with ``Argon2id``, ``Argon2i`` and ``Scrypt``
+- **Key derivation** with the `kdf(size:password:salt:opsLimit:memLimit:encoder:)` methods on the password hashing types
+- **Advanced encryption** with additional authenticated data (AEAD) through ``CryptoAead``, and streaming encryption through ``CryptoSecretStream``
 
 ## Getting Help
 
 - Check the full API documentation for detailed method descriptions
 - Review the test suite for more usage examples
-- Report issues on the GitHub repository
-- Read the libsodium documentation for cryptographic background
+- Report issues on the [GitHub repository](https://github.com/Kingpin-Apps/swift-nacl)
+- Read the [libsodium documentation](https://doc.libsodium.org/) for cryptographic background
 
 ## Security Notice
 
@@ -291,7 +322,7 @@ Now that you understand the basics, explore more advanced features:
 
 1. Keep private keys and sensitive data secure
 2. Use the library's built-in random number generation
-3. Validate all inputs and handle errors appropriately  
+3. Validate all inputs and handle errors appropriately
 4. Stay updated with the latest version for security fixes
 5. Consider having your implementation reviewed by security experts
 

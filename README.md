@@ -1,6 +1,6 @@
-![GitHub Workflow Status](https://github.com/Kingpin-Apps/swift-ncal/actions/workflows/swift.yml/badge.svg)
-[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FKingpin-Apps%2Fswift-ncal%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/Kingpin-Apps/swift-ncal)
-[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FKingpin-Apps%2Fswift-ncal%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/Kingpin-Apps/swift-ncal)
+![GitHub Workflow Status](https://github.com/Kingpin-Apps/swift-nacl/actions/workflows/swift.yml/badge.svg)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FKingpin-Apps%2Fswift-nacl%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/Kingpin-Apps/swift-nacl)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FKingpin-Apps%2Fswift-nacl%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/Kingpin-Apps/swift-nacl)
 
 # Swift-NaCL - Swift binding to libsodium (Cardano fork)
 
@@ -10,31 +10,33 @@ This package provides a modern, idiomatic Swift interface to the cryptographic p
 
 ## Platform Support
 
-| Platform | Minimum version | libsodium source |
+| Platform | Architectures | libsodium source |
 |---|---|---|
-| iOS | 13.0 | bundled `Clibsodium.xcframework` |
-| macOS | 10.15 | bundled `Clibsodium.xcframework` |
-| tvOS | 13.0 | bundled `Clibsodium.xcframework` |
-| watchOS | 6.0 | bundled `Clibsodium.xcframework` |
-| visionOS | 1.0 | bundled `Clibsodium.xcframework` |
+| iOS, Mac Catalyst | device + simulator | bundled `Clibsodium.xcframework` |
+| macOS | arm64, x86_64 | bundled `Clibsodium.xcframework` |
+| tvOS | device + simulator | bundled `Clibsodium.xcframework` |
+| watchOS | device + simulator | bundled `Clibsodium.xcframework` |
+| visionOS | device + simulator | bundled `Clibsodium.xcframework` |
 | Linux | x86_64, aarch64 | vendored C source at `ClibsodiumLinuxSource/` |
 | Android | x86_64, aarch64 | vendored C source at `ClibsodiumLinuxSource/` |
 
+The package requires Swift 6.0 or later and does not declare minimum OS versions, so SwiftPM's defaults for your toolchain apply.
+
 There is no need to install libsodium via your system package manager. In fact, **doing so will not work** for any code path using VRF (`crypto_vrf_*`) — system libsodium is the upstream jedisct1 build, which does not contain those symbols.
 
-**WASI / Wasm** is not currently supported. The libsodium source relies on POSIX features (pthread, mmap, signal.h) that WASI doesn't provide; supporting Wasm would require a substantial set of `.when(platforms: [.wasi])` conditional defines plus upstream Cfyaml fixes elsewhere in the Cardano Swift stack.
+**WASI / Wasm** is not currently supported. The libsodium source relies on POSIX features (pthread, mmap, signal.h) that WASI doesn't provide; supporting Wasm would require a substantial set of `.when(platforms: [.wasi])` conditional defines (see [WASI / Wasm](#wasi--wasm) below).
 
 ## Installation
 
 ### Swift Package Manager
 
-To add Swift-NaCL as dependency to your Xcode project, select `File` > `Swift Packages` > `Add Package Dependency`, enter its repository URL:
+To add Swift-NaCL as a dependency to your Xcode project, select `File` > `Add Package Dependencies…` and enter its repository URL:
 
 ```
-https://github.com/Kingpin-Apps/swift-ncal.git
+https://github.com/Kingpin-Apps/swift-nacl.git
 ```
 
-Import both `SwiftNaCl` and `Clibsodium` in your project.
+Add the `SwiftNaCl` library to your target and `import SwiftNaCl`. The package also vends a `Clibsodium` library with the raw C functions; you only need it to call libsodium directly.
 
 ### Package.swift
 
@@ -42,13 +44,13 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Kingpin-Apps/swift-ncal.git", from: "0.1.4")
+    .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "1.0.0")
 ],
 targets: [
     .target(
         name: "YourTarget",
         dependencies: [
-            .product(name: "SwiftNaCl", package: "swift-ncal")
+            .product(name: "SwiftNaCl", package: "swift-nacl")
         ]
     )
 ]
@@ -65,14 +67,12 @@ import SwiftNaCl
 ## Key Features
 
 - ✅ **Digital Signatures** - Ed25519 signing and verification
-- ✅ **Secret-key Encryption** - XSalsa20-Poly1305 and XChacha20-Poly1305 AEAD
-- ✅ **Public-key Encryption** - Curve25519 key exchange with authenticated encryption
-- ✅ **Cryptographic Hashing** - SHA-256, SHA-512, BLAKE2b, SipHash variants
+- ✅ **Secret-key Encryption** - ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD, plus XChaCha20-Poly1305 secret streams
+- ✅ **Public-key Encryption** - Curve25519 authenticated encryption (XSalsa20-Poly1305) and anonymous sealed boxes
+- ✅ **Cryptographic Hashing** - SHA-256, SHA-512, BLAKE2b (optionally keyed), SipHash-2-4 and its 128-bit variant
 - ✅ **Verifiable Random Functions (VRF)** - IETF Draft 03 specification with Ed25519
-- ✅ **Message Authentication** - Poly1305 MAC
-- ✅ **Key Derivation** - Password-based and deterministic key generation
-- ✅ **Cross-platform** - Works on Apple platforms and Linux
-- ✅ **Memory Safe** - Secure memory handling with automatic cleanup
+- ✅ **Password Hashing and Key Derivation** - Argon2i, Argon2id and scrypt, plus deterministic key generation from seeds
+- ✅ **Cross-platform** - Works on Apple platforms, Linux and Android
 
 ## Quick Start Examples
 
@@ -94,21 +94,25 @@ let verifiedMessage = try verifyKey.verify(smessage: signedMessage.getCombined)
 print(String(data: verifiedMessage, encoding: .utf8)!) // "Hello, World!"
 ```
 
-### Secret-key Encryption (XSalsa20-Poly1305)
+### Secret-key Encryption (XChaCha20-Poly1305)
+
+Authenticated secret-key encryption is available through the low-level `CryptoAead` binding:
 
 ```swift
 import SwiftNaCl
 
-// Generate a random key
-let key = random(size: 32)
-let secretBox = try SecretBox(key: key)
+let aead = Sodium().cryptoAead
+
+// Generate a random 32-byte key and a new random 24-byte nonce for every message
+let key = random(size: Int(aead.xchacha20poly1305IetfKeyBytes))
+let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
 
 // Encrypt a message
 let plaintext = "Secret message".data(using: .utf8)!
-let encrypted = try secretBox.encrypt(plaintext: plaintext)
+let ciphertext = try aead.xchacha20poly1305IetfEncrypt(message: plaintext, aad: nil, nonce: nonce, key: key)
 
-// Decrypt the message
-let decrypted = try secretBox.decrypt(ciphertext: encrypted.combined)
+// Decrypt the message (the nonce is not secret; store or send it with the ciphertext)
+let decrypted = try aead.xchacha20poly1305IetfDecrypt(ciphertext: ciphertext, aad: nil, nonce: nonce, key: key)
 print(String(data: decrypted, encoding: .utf8)!) // "Secret message"
 ```
 
@@ -121,15 +125,30 @@ import SwiftNaCl
 let aliceKeyPair = KeyPair.generate()
 let bobKeyPair = KeyPair.generate()
 
+let box = Sodium().cryptoBox
+let nonce = random(size: Int(box.nonceBytes))
+
 // Alice encrypts a message for Bob
-let aliceBox = try Box(privateKey: aliceKeyPair.secretKey, publicKey: bobKeyPair.publicKey)
 let message = "Hello Bob!".data(using: .utf8)!
-let encrypted = try aliceBox.encrypt(plaintext: message)
+let ciphertext = try box.easy(
+    message: message,
+    nonce: nonce,
+    publicKey: bobKeyPair.publicKey.toBytes(),
+    secretKey: aliceKeyPair.secretKey.toBytes()
+)
 
 // Bob decrypts the message from Alice
-let bobBox = try Box(privateKey: bobKeyPair.secretKey, publicKey: aliceKeyPair.publicKey)
-let decrypted = try bobBox.decrypt(ciphertext: encrypted.combined)
+let decrypted = try box.openEasy(
+    ciphertext: ciphertext,
+    nonce: nonce,
+    publicKey: aliceKeyPair.publicKey.toBytes(),
+    secretKey: bobKeyPair.secretKey.toBytes()
+)
 print(String(data: decrypted, encoding: .utf8)!) // "Hello Bob!"
+
+// Anonymous alternative: only the recipient's public key is needed to encrypt
+let sealed = try SealedBox(recipientKey: bobKeyPair.publicKey).encrypt(plaintext: message)
+let opened = try SealedBox(recipientKey: bobKeyPair.secretKey).decrypt(ciphertext: sealed)
 ```
 
 ### Cryptographic Hashing
@@ -140,9 +159,12 @@ import SwiftNaCl
 let hash = Hash()
 let message = "Hello, World!".data(using: .utf8)!
 
-// SHA-256
+// SHA-256 (Hash returns hex-encoded Data by default)
 let sha256Hash = try hash.sha256(message: message)
-print(sha256Hash.base64EncodedString())
+print(String(decoding: sha256Hash, as: UTF8.self))
+
+// Raw 32-byte digest instead of hex
+let rawDigest = try hash.sha256(message: message, encoder: RawEncoder.self)
 
 // BLAKE2b with custom parameters
 let blake2bHash = try hash.blake2b(
@@ -189,14 +211,24 @@ assert(output == output2) // Always true!
 - `PrivateKey` - Curve25519 private key
 - `PublicKey` - Curve25519 public key
 - `KeyPair` - Combined public/private key pair
-- `Box` - Public-key authenticated encryption
+- `SealedBox` - Anonymous public-key encryption to a recipient
+- `Box` - Public-key authenticated encryption with a precomputed shared key (decryption only for now; see below)
 
-#### Secret-key Encryption
-- `SecretBox` - XSalsa20-Poly1305 AEAD encryption
-- `Aead` - XChacha20-Poly1305 AEAD encryption with additional data
+#### Low-level Bindings (via `Sodium()`)
+- `CryptoAead` - ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD encryption with additional data
+- `CryptoBox` - Curve25519 public-key authenticated encryption and sealed boxes
+- `CryptoSecretStream` - XChaCha20-Poly1305 streaming encryption
+- `CryptoSign`, `CryptoHash`, `CryptoGenericHash`, `CryptoPwHash`, `CryptoScalarmult`, `CryptoCore`, `RandomBytes`, `CryptoUtils`
+
+`Box.encrypt` currently returns an `EncryptedMessage` whose contents are not public, so use `CryptoBox.easy` to encrypt; `Box.decrypt` accepts the nonce followed by the ciphertext.
 
 #### Hashing
 - `Hash` - Cryptographic hash functions (SHA-256, SHA-512, BLAKE2b, SipHash)
+- `Blake2b` - Incremental BLAKE2b hashing
+
+#### Password Hashing
+- `Argon2id`, `Argon2i`, `Scrypt` - Password hashing (`str`, `verify`) and key derivation (`kdf`)
+- `PwHash` - Verifies any supported password hash by its prefix
 
 #### Verifiable Random Functions
 - `VRFSeed` - 32-byte cryptographic seed for key generation
@@ -210,26 +242,30 @@ assert(output == output2) // Always true!
 - `RawEncoder` - Raw binary data (default)
 - `HexEncoder` - Hexadecimal encoding
 - `Base64Encoder` - Base64 encoding (via Foundation)
+- `Base32Encoder`, `URLSafeBase64Encoder` - Base32 and URL-safe Base64 encoding
 
 ### Error Handling
 
-Swift-NaCL uses Swift's error handling mechanism. All cryptographic operations that can fail throw descriptive errors:
+Swift-NaCL uses Swift's error handling mechanism. Operations that can fail throw a `SodiumError` (or a `VRFError` for VRF operations):
 
 ```swift
 do {
-    let signingKey = try SigningKey(seed: invalidSeed)
+    let signingKey = try SigningKey(seed: Data(count: 5)) // must be 32 bytes
 } catch {
     print("Failed to create signing key: \(error)")
+    // Failed to create signing key: valueError("The seed must be exactly 32 bytes long")
 }
 ```
 
 ### Memory Security
 
-The library automatically handles secure memory cleanup for sensitive data like private keys. However, you should still follow security best practices:
+Keys, seeds and other secrets are held in ordinary `Data` values and are **not** zeroed automatically when they are released. Follow security best practices:
 
 - Don't log sensitive data
-- Clear sensitive variables when no longer needed
+- Clear sensitive buffers you own when no longer needed (for example with `Data.resetBytes(in:)`)
 - Use secure storage for long-term key storage
+
+The VRF types are `Sendable` value types; the other key and box types are classes that are not `Sendable`.
 
 ## Advanced Usage
 
@@ -238,12 +274,16 @@ The library automatically handles secure memory cleanup for sensitive data like 
 You can specify different encoders for input/output:
 
 ```swift
-// Use hex encoding for keys
-let hexKey = "0123456789abcdef..."
-let signingKey = try SigningKey(seed: Data(hex: hexKey), encoder: HexEncoder.self)
+// Pass a hex-encoded 32-byte seed (64 hex characters) and let HexEncoder decode it
+let hexSeed = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+let signingKey = try SigningKey(seed: Data(hexSeed.utf8), encoder: HexEncoder.self)
 
-// Sign with hex output
+// Sign with hex output (the signature and combined message are hex-encoded Data)
+let message = "Hello".data(using: .utf8)!
 let signedMessage = try signingKey.sign(message: message, encoder: HexEncoder.self)
+
+// Verify hex-encoded input
+let verified = try signingKey.verifyKey.verify(smessage: signedMessage.getCombined, encoder: HexEncoder.self)
 ```
 
 ### Key Conversion
@@ -264,8 +304,8 @@ let curve25519Public = try verifyKey.toCurve25519PublicKey()
 Generate VRF keys deterministically from a seed:
 
 ```swift
-// Create a deterministic seed
-let seedData = "my-deterministic-seed-32-bytes!".data(using: .utf8)!
+// Create a deterministic seed (must be exactly 32 bytes)
+let seedData = "my-deterministic-seed-32-bytes!!".data(using: .utf8)!
 let seed = try VRFSeed(bytes: seedData)
 
 // Generate keys from seed - always the same for the same seed
@@ -315,7 +355,7 @@ The pinned upstream commit is recorded in `ClibsodiumLinuxSource/UPSTREAM_COMMIT
 
 CPU-specific SIMD variants (AVX2, SSE4.1, SSSE3, AVX-512F) are intentionally excluded from the build because SwiftPM doesn't expose per-source-file compile flags. Runtime CPU dispatch in `sodium/runtime.c` falls back cleanly to the portable ref paths.
 
-**Do not** install vanilla libsodium via `apt`, `yum`, or `brew` — on Linux/Android it will be silently ignored, and on Apple platforms the bundled xcframework takes precedence. If you've previously installed it for swift-ncal, you can safely uninstall it.
+**Do not** install vanilla libsodium via `apt`, `yum`, or `brew` — on Linux/Android it will be silently ignored, and on Apple platforms the bundled xcframework takes precedence. If you installed it for an earlier version of this package (when it was named swift-ncal), you can safely uninstall it.
 
 ### WASI / Wasm
 
@@ -330,11 +370,11 @@ swift test
 ```
 
 Tests cover:
-- All cryptographic operations
+- Signing, public-key and secret-key encryption, hashing, password hashing and VRF
+- The low-level libsodium bindings
 - Key generation and validation
-- Cross-platform compatibility
+- Encoders and utilities
 - Error conditions
-- Memory safety
 
 ## Security Considerations
 
@@ -342,9 +382,9 @@ Tests cover:
 
 1. **Private Key Protection**: Private keys and seeds must be kept secret and secure
 2. **Nonce Uniqueness**: Never reuse nonces with the same key
-3. **Random Generation**: Use cryptographically secure random number generation
-4. **Memory Handling**: Sensitive data is automatically cleared from memory
-5. **Constant-time Operations**: All comparisons use constant-time algorithms
+3. **Random Generation**: Use cryptographically secure random number generation (`random(size:)` and the `generate()` methods use the system's secure generator)
+4. **Memory Handling**: Sensitive data is not cleared from memory automatically; clear buffers you own and avoid unnecessary copies
+5. **Constant-time Comparisons**: Key, VRF proof and VRF output equality (`==`) uses libsodium's constant-time `sodium_memcmp`; use `Sodium().utils.sodiumMemcmp` for your own secret comparisons
 
 ## Contributing
 
@@ -358,7 +398,7 @@ Contributions are welcome! Please:
 
 ## License
 
-This project follows the same license as the underlying libsodium library.
+This project is released under the MIT License (see `LICENSE`). The bundled libsodium is distributed under its own ISC license.
 
 ## Acknowledgments
 
