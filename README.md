@@ -42,7 +42,7 @@ Add the `SwiftNaCl` library to your target and `import SwiftNaCl`. The package a
 
 Add the following to your `Package.swift` file:
 
-```swift
+``swift
 dependencies: [
     .package(url: "https://github.com/Kingpin-Apps/swift-nacl.git", from: "1.0.0")
 ],
@@ -54,20 +54,20 @@ targets: [
         ]
     )
 ]
-```
+``
 
 ### Usage
 
 In your Swift files, import the library:
 
-```swift
+``swift
 import SwiftNaCl
-```
+``
 
 ## Key Features
 
 - ✅ **Digital Signatures** - Ed25519 signing and verification
-- ✅ **Secret-key Encryption** - ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD, plus XChaCha20-Poly1305 secret streams
+- ✅ **Secret-key Encryption** - XSalsa20-Poly1305 secret boxes, ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD, plus XChaCha20-Poly1305 secret streams
 - ✅ **Public-key Encryption** - Curve25519 authenticated encryption (XSalsa20-Poly1305) and anonymous sealed boxes
 - ✅ **Cryptographic Hashing** - SHA-256, SHA-512, BLAKE2b (optionally keyed), SipHash-2-4 and its 128-bit variant
 - ✅ **Verifiable Random Functions (VRF)** - IETF Draft 03 specification with Ed25519
@@ -78,7 +78,7 @@ import SwiftNaCl
 
 ### Digital Signatures (Ed25519)
 
-```swift
+``swift
 import SwiftNaCl
 
 // Generate a signing key
@@ -92,29 +92,33 @@ let signedMessage = try signingKey.sign(message: message)
 // Verify the signature
 let verifiedMessage = try verifyKey.verify(smessage: signedMessage.getCombined)
 print(String(data: verifiedMessage, encoding: .utf8)!) // "Hello, World!"
-```
+``
 
-### Secret-key Encryption (XChaCha20-Poly1305)
+### Secret-key Encryption
 
-Authenticated secret-key encryption is available through the low-level `CryptoAead` binding:
+`SecretBox` (XSalsa20-Poly1305) and `Aead` (XChaCha20-Poly1305 with additional data) generate a random nonce for every message and return an `EncryptedMessage` holding the `nonce`, the `ciphertext`, and both `combined`:
 
-```swift
+``swift
 import SwiftNaCl
 
-let aead = Sodium().cryptoAead
-
-// Generate a random 32-byte key and a new random 24-byte nonce for every message
-let key = random(size: Int(aead.xchacha20poly1305IetfKeyBytes))
-let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-
-// Encrypt a message
+// Generate a random 32-byte key
+let key = random(size: 32)
 let plaintext = "Secret message".data(using: .utf8)!
-let ciphertext = try aead.xchacha20poly1305IetfEncrypt(message: plaintext, aad: nil, nonce: nonce, key: key)
 
-// Decrypt the message (the nonce is not secret; store or send it with the ciphertext)
-let decrypted = try aead.xchacha20poly1305IetfDecrypt(ciphertext: ciphertext, aad: nil, nonce: nonce, key: key)
+// SecretBox: the combined bytes carry the nonce, so they are all you need to store or send
+let box = try SecretBox(key: key)
+let encrypted = try box.encrypt(plaintext: plaintext)
+let decrypted = try box.decrypt(ciphertext: encrypted.combined)
 print(String(data: decrypted, encoding: .utf8)!) // "Secret message"
-```
+
+// Aead: also authenticates data sent alongside the message without encrypting it
+let aead = try Aead(key: key)
+let header = "v1".data(using: .utf8)!
+let sealed = try aead.encrypt(plaintext: plaintext, aad: header)
+let opened = try aead.decrypt(ciphertext: sealed.combined, aad: header)
+``
+
+The low-level `CryptoSecretBox` and `CryptoAead` bindings (`Sodium().cryptoSecretBox`, `Sodium().cryptoAead`) take an explicit nonce instead.
 
 ### Public-key Encryption (Curve25519)
 
@@ -125,35 +129,27 @@ import SwiftNaCl
 let aliceKeyPair = KeyPair.generate()
 let bobKeyPair = KeyPair.generate()
 
-let box = Sodium().cryptoBox
-let nonce = random(size: Int(box.nonceBytes))
-
-// Alice encrypts a message for Bob
+// Alice encrypts a message for Bob (a random nonce is generated for her)
 let message = "Hello Bob!".data(using: .utf8)!
-let ciphertext = try box.easy(
-    message: message,
-    nonce: nonce,
-    publicKey: bobKeyPair.publicKey.toBytes(),
-    secretKey: aliceKeyPair.secretKey.toBytes()
-)
+let aliceBox = try Box(privateKey: aliceKeyPair.secretKey, publicKey: bobKeyPair.publicKey)
+let encrypted = try aliceBox.encrypt(plaintext: message)
 
-// Bob decrypts the message from Alice
-let decrypted = try box.openEasy(
-    ciphertext: ciphertext,
-    nonce: nonce,
-    publicKey: aliceKeyPair.publicKey.toBytes(),
-    secretKey: bobKeyPair.secretKey.toBytes()
-)
+// Bob decrypts the message from Alice; `combined` is the nonce followed by the ciphertext
+let bobBox = try Box(privateKey: bobKeyPair.secretKey, publicKey: aliceKeyPair.publicKey)
+let decrypted = try bobBox.decrypt(ciphertext: encrypted.combined)
 print(String(data: decrypted, encoding: .utf8)!) // "Hello Bob!"
+
+// Or send the parts separately
+let same = try bobBox.decrypt(ciphertext: encrypted.ciphertext, nonce: encrypted.nonce)
 
 // Anonymous alternative: only the recipient's public key is needed to encrypt
 let sealed = try SealedBox(recipientKey: bobKeyPair.publicKey).encrypt(plaintext: message)
 let opened = try SealedBox(recipientKey: bobKeyPair.secretKey).decrypt(ciphertext: sealed)
-```
+``
 
 ### Cryptographic Hashing
 
-```swift
+``swift
 import SwiftNaCl
 
 let hash = Hash()
@@ -174,11 +170,11 @@ let blake2bHash = try hash.blake2b(
     salt: "salt1234".data(using: .utf8)!,
     person: "personal".data(using: .utf8)!
 )
-```
+``
 
 ### Verifiable Random Functions (VRF)
 
-```swift
+``swift
 import SwiftNaCl
 
 // Generate a VRF key pair
@@ -212,15 +208,21 @@ assert(output == output2) // Always true!
 - `PublicKey` - Curve25519 public key
 - `KeyPair` - Combined public/private key pair
 - `SealedBox` - Anonymous public-key encryption to a recipient
-- `Box` - Public-key authenticated encryption with a precomputed shared key (decryption only for now; see below)
+- `Box` - Public-key authenticated encryption with a precomputed shared key
+- `EncryptedMessage` - The `nonce`, `ciphertext` and `combined` bytes returned by `Box`, `SecretBox` and `Aead`
+
+#### Secret-key Encryption
+- `SecretBox` - XSalsa20-Poly1305 authenticated encryption with a shared key
+- `Aead` - XChaCha20-Poly1305 authenticated encryption with additional data
 
 #### Low-level Bindings (via `Sodium()`)
 - `CryptoAead` - ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD encryption with additional data
 - `CryptoBox` - Curve25519 public-key authenticated encryption and sealed boxes
+- `CryptoSecretBox` - XSalsa20-Poly1305 secret-key authenticated encryption
 - `CryptoSecretStream` - XChaCha20-Poly1305 streaming encryption
+- `CryptoKx` - Client-server key exchange (session keys)
+- `CryptoShortHash` - SipHash-2-4 and SipHashX-2-4 short-input keyed hashing
 - `CryptoSign`, `CryptoHash`, `CryptoGenericHash`, `CryptoPwHash`, `CryptoScalarmult`, `CryptoCore`, `RandomBytes`, `CryptoUtils`
-
-`Box.encrypt` currently returns an `EncryptedMessage` whose contents are not public, so use `CryptoBox.easy` to encrypt; `Box.decrypt` accepts the nonce followed by the ciphertext.
 
 #### Hashing
 - `Hash` - Cryptographic hash functions (SHA-256, SHA-512, BLAKE2b, SipHash)
@@ -240,7 +242,8 @@ assert(output == output2) // Always true!
 
 #### Encoding
 - `RawEncoder` - Raw binary data (default)
-- `HexEncoder` - Hexadecimal encoding
+- `HexEncoder` - Hexadecimal encoding (lowercase)
+- `Base16Encoder` - Base16 (RFC 4648) encoding: uppercase hex, decodes either case
 - `Base64Encoder` - Base64 encoding (via Foundation)
 - `Base32Encoder`, `URLSafeBase64Encoder` - Base32 and URL-safe Base64 encoding
 
@@ -248,14 +251,14 @@ assert(output == output2) // Always true!
 
 Swift-NaCL uses Swift's error handling mechanism. Operations that can fail throw a `SodiumError` (or a `VRFError` for VRF operations):
 
-```swift
+``swift
 do {
     let signingKey = try SigningKey(seed: Data(count: 5)) // must be 32 bytes
 } catch {
     print("Failed to create signing key: \(error)")
     // Failed to create signing key: valueError("The seed must be exactly 32 bytes long")
 }
-```
+``
 
 ### Memory Security
 
@@ -273,7 +276,7 @@ The VRF types are `Sendable` value types; the other key and box types are classe
 
 You can specify different encoders for input/output:
 
-```swift
+``swift
 // Pass a hex-encoded 32-byte seed (64 hex characters) and let HexEncoder decode it
 let hexSeed = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 let signingKey = try SigningKey(seed: Data(hexSeed.utf8), encoder: HexEncoder.self)
@@ -284,26 +287,26 @@ let signedMessage = try signingKey.sign(message: message, encoder: HexEncoder.se
 
 // Verify hex-encoded input
 let verified = try signingKey.verifyKey.verify(smessage: signedMessage.getCombined, encoder: HexEncoder.self)
-```
+``
 
 ### Key Conversion
 
 Convert between Ed25519 and Curve25519 keys:
 
-```swift
+``swift
 let signingKey = try SigningKey.generate()
 let verifyKey = signingKey.verifyKey
 
 // Convert to Curve25519 for encryption
 let curve25519Private = try signingKey.toCurve25519PrivateKey()
 let curve25519Public = try verifyKey.toCurve25519PublicKey()
-```
+``
 
 ### VRF Deterministic Key Generation
 
 Generate VRF keys deterministically from a seed:
 
-```swift
+``swift
 // Create a deterministic seed (must be exactly 32 bytes)
 let seedData = "my-deterministic-seed-32-bytes!!".data(using: .utf8)!
 let seed = try VRFSeed(bytes: seedData)
@@ -314,13 +317,13 @@ let keyPair = try VRFKeyPair.from(seed: seed)
 // Extract the original seed from a signing key
 let originalSeed = keyPair.signingKey.seed
 assert(originalSeed == seed)
-```
+``
 
 ### VRF Proof Extraction
 
 Extract VRF output directly from a proof (without verification):
 
-```swift
+``swift
 let keyPair = VRFKeyPair.generate()
 let message = "data".data(using: .utf8)!
 let proof = try keyPair.signingKey.prove(message: message)
@@ -333,7 +336,7 @@ let verifiedOutput = try keyPair.verifyingKey.verify(message: message, proof: pr
 
 // Both outputs are identical
 assert(directOutput == verifiedOutput)
-```
+``
 
 ## Dependencies
 
@@ -365,9 +368,9 @@ Not currently supported. The libsodium source relies on POSIX features absent fr
 
 Run the test suite:
 
-```bash
+``bash
 swift test
-```
+``
 
 Tests cover:
 - Signing, public-key and secret-key encryption, hashing, password hashing and VRF
@@ -382,7 +385,7 @@ Tests cover:
 
 1. **Private Key Protection**: Private keys and seeds must be kept secret and secure
 2. **Nonce Uniqueness**: Never reuse nonces with the same key
-3. **Random Generation**: Use cryptographically secure random number generation (`random(size:)` and the `generate()` methods use the system's secure generator)
+3. **Random Generation**: Use cryptographically secure random number generation (`random(size:)` and the `generate()` methods use libsodium's `randombytes_buf`, which reads the operating system's secure generator)
 4. **Memory Handling**: Sensitive data is not cleared from memory automatically; clear buffers you own and avoid unnecessary copies
 5. **Constant-time Comparisons**: Key, VRF proof and VRF output equality (`==`) uses libsodium's constant-time `sodium_memcmp`; use `Sodium().utils.sodiumMemcmp` for your own secret comparisons
 

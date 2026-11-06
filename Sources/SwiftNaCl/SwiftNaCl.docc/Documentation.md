@@ -10,14 +10,14 @@ SwiftNaCl is built on [IntersectMBO/libsodium](https://github.com/IntersectMBO/l
 
 The API has two layers:
 
-- **High-level types** such as ``SigningKey``, ``SealedBox``, ``Hash``, ``Argon2id`` and the VRF types, which wrap keys and common operations.
+- **High-level types** such as ``SigningKey``, ``Box``, ``SealedBox``, ``SecretBox``, ``Aead``, ``Hash``, ``Argon2id`` and the VRF types, which wrap keys and common operations.
 - **Low-level bindings** reached through ``Sodium``, such as `Sodium().cryptoAead` or `Sodium().cryptoBox`, which map closely to the libsodium C functions and work with raw `Data`.
 
 ### Key Features
 
 - **Digital Signatures**: Ed25519 signing and verification
 - **Public-key Encryption**: Curve25519 authenticated encryption (XSalsa20-Poly1305) and anonymous sealed boxes
-- **Secret-key Encryption**: ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD, plus XChaCha20-Poly1305 secret streams
+- **Secret-key Encryption**: XSalsa20-Poly1305 secret boxes, ChaCha20-Poly1305 and XChaCha20-Poly1305 AEAD, plus XChaCha20-Poly1305 secret streams
 - **Cryptographic Hashing**: SHA-256, SHA-512, BLAKE2b (optionally keyed), SipHash-2-4 and its 128-bit variant
 - **Password Hashing and Key Derivation**: Argon2i, Argon2id and scrypt
 - **Verifiable Random Functions (VRF)**: IETF draft 03 (draft-irtf-cfrg-vrf-03) with Ed25519
@@ -45,6 +45,11 @@ The API has two layers:
 - ``SealedBox``
 - ``Box``
 - ``EncryptedMessage``
+
+### Secret-key Encryption
+
+- ``SecretBox``
+- ``Aead``
 
 ### Verifiable Random Functions
 
@@ -76,6 +81,7 @@ The API has two layers:
 - ``Encoder``
 - ``RawEncoder``
 - ``HexEncoder``
+- ``Base16Encoder``
 - ``Base32Encoder``
 - ``Base64Encoder``
 - ``URLSafeBase64Encoder``
@@ -88,6 +94,7 @@ The API has two layers:
 - ``Sodium``
 - ``CryptoAead``
 - ``CryptoBox``
+- ``CryptoSecretBox``
 - ``CryptoSecretStream``
 - ``CryptoSecretstreamXchacha20poly1305State``
 - ``CryptoSign``
@@ -97,6 +104,7 @@ The API has two layers:
 - ``Blake2State``
 - ``CryptoShortHash``
 - ``CryptoPwHash``
+- ``CryptoKx``
 - ``CryptoScalarmult``
 - ``CryptoCore``
 - ``RandomBytes``

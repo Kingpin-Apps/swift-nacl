@@ -26,15 +26,11 @@ func secureProcess(data: Data, password: Data) throws -> Data {
     let salt = random(size: argon2id.saltBytes) // 16 bytes
     let key = try argon2id.kdf(size: 32, password: password, salt: salt)
 
-    // 3. Encrypt with authenticated encryption
-    let aead = Sodium().cryptoAead
-    let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-    let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
-        message: data, aad: nil, nonce: nonce, key: key
-    )
+    // 3. Encrypt with authenticated encryption (a random nonce is generated)
+    let encrypted = try Aead(key: key).encrypt(plaintext: data)
 
     // 4. Return salt + nonce + ciphertext for later decryption
-    return salt + nonce + ciphertext
+    return salt + encrypted.combined
 }
 ```
 
@@ -120,7 +116,7 @@ func loadKeyFromEnvironment(name: String) throws -> Data {
 
 ## Random Number Generation
 
-``random(size:)`` and the `generate()` methods use the system's cryptographically secure random number generator. Always use them for keys, nonces and salts:
+``random(size:)`` and the `generate()` methods use libsodium's `randombytes_buf`, which reads the operating system's cryptographically secure random number generator. Always use them for keys, nonces and salts:
 
 ```swift
 // ✅ Good: Use a secure random number generator
@@ -183,24 +179,19 @@ print("Processing with key: \(bytesAsString(bytesIn: signingKey.verifyKey.bytes)
 
 ### Always Use Authenticated Encryption
 
-Use constructions that provide both confidentiality and integrity. Both ``CryptoAead`` and ``CryptoBox`` authenticate the ciphertext, so decryption fails if it has been changed:
+Use constructions that provide both confidentiality and integrity. ``SecretBox``, ``Aead`` and ``Box`` (and the ``CryptoSecretBox``, ``CryptoAead`` and ``CryptoBox`` bindings) authenticate the ciphertext, so decryption fails if it has been changed:
 
 ```swift
-let aead = Sodium().cryptoAead
+let aead = try Aead(key: key)
 
 // ✅ Good: Authenticated encryption
-let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-let encrypted = try aead.xchacha20poly1305IetfEncrypt(
-    message: data, aad: nil, nonce: nonce, key: key
-)
+let encrypted = try aead.encrypt(plaintext: data)
 
 // ✅ Also good: AEAD with additional data, which is authenticated but not encrypted
 let metadata = "file_v1".data(using: .utf8)!
-let nonce2 = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-let encryptedWithMetadata = try aead.xchacha20poly1305IetfEncrypt(
-    message: data, aad: metadata, nonce: nonce2, key: key
-)
+let encryptedWithMetadata = try aead.encrypt(plaintext: data, aad: metadata)
 // Decryption must pass the same metadata as `aad`
+let decrypted = try aead.decrypt(ciphertext: encryptedWithMetadata.combined, aad: metadata)
 ```
 
 ### Unique Nonces
@@ -209,22 +200,16 @@ Never reuse nonces with the same key:
 
 ```swift
 final class SecureStorage {
-    private let key: Data
-    private let aead = Sodium().cryptoAead
+    private let aead: Aead
 
-    init(key: Data) {
-        self.key = key
+    init(key: Data) throws {
+        self.aead = try Aead(key: key)
     }
 
     func encrypt(data: Data) throws -> Data {
         // XChaCha20-Poly1305 has 24-byte nonces, which are large enough
-        // to be chosen at random for every message
-        let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-
-        let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
-            message: data, aad: nil, nonce: nonce, key: key
-        )
-        return nonce + ciphertext
+        // to be chosen at random for every message; Aead does this by default
+        return try aead.encrypt(plaintext: data).combined
     }
 }
 ```
@@ -361,23 +346,16 @@ struct SecureMessage {
         senderEncryptionKey: PrivateKey,
         senderSigningKey: SigningKey
     ) throws -> SecureMessage {
-        let box = Sodium().cryptoBox
-
-        // Encrypt for recipient
-        let nonce = random(size: Int(box.nonceBytes))
-        let encrypted = try box.easy(
-            message: message,
-            nonce: nonce,
-            publicKey: recipientKey.toBytes(),
-            secretKey: senderEncryptionKey.toBytes()
-        )
+        // Encrypt for recipient (a random nonce is generated)
+        let box = try Box(privateKey: senderEncryptionKey, publicKey: recipientKey)
+        let encrypted = try box.encrypt(plaintext: message)
 
         // Sign the nonce and encrypted message
-        let signedMessage = try senderSigningKey.sign(message: nonce + encrypted)
+        let signedMessage = try senderSigningKey.sign(message: encrypted.combined)
 
         return SecureMessage(
-            nonce: nonce,
-            encryptedPayload: encrypted,
+            nonce: encrypted.nonce,
+            encryptedPayload: encrypted.ciphertext,
             signature: signedMessage.getSignature,
             senderVerifyKey: senderSigningKey.verifyKey.bytes
         )

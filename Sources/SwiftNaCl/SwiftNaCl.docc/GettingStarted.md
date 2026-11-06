@@ -72,7 +72,7 @@ print(String(data: verifiedMessage, encoding: .utf8)!) // "Hello, SwiftNaCl!"
 
 ### High-level Types and Low-level Bindings
 
-SwiftNaCl has two layers. High-level types such as ``SigningKey``, ``SealedBox``, ``Hash`` and ``VRFKeyPair`` wrap keys and common operations. The low-level bindings are reached through ``Sodium`` (for example `Sodium().cryptoAead` or `Sodium().cryptoBox`) and work directly with raw `Data`, close to the libsodium C API. Some features, such as authenticated secret-key encryption, are currently only available through the low-level bindings.
+SwiftNaCl has two layers. High-level types such as ``SigningKey``, ``Box``, ``SealedBox``, ``SecretBox``, ``Aead``, ``Hash`` and ``VRFKeyPair`` wrap keys and common operations, and generate nonces for you. The low-level bindings are reached through ``Sodium`` (for example `Sodium().cryptoAead` or `Sodium().cryptoBox`) and work directly with raw `Data`, close to the libsodium C API.
 
 ### Error Handling
 
@@ -119,64 +119,46 @@ let verifiedData = try verifyKey.verify(smessage: signedMessage.getCombined)
 
 ### 2. Secret-Key Encryption
 
-For encrypting data with a shared secret, use XChaCha20-Poly1305 authenticated encryption from the low-level ``CryptoAead`` binding:
+For encrypting data with a shared secret, use ``SecretBox`` (XSalsa20-Poly1305) or ``Aead`` (XChaCha20-Poly1305, which can also authenticate unencrypted data). Both generate a random nonce for every message and return an ``EncryptedMessage``:
 
 ```swift
-let aead = Sodium().cryptoAead
-
 // Generate a random 32-byte key (keep this secret!)
-let key = random(size: Int(aead.xchacha20poly1305IetfKeyBytes))
-
-// Use a new random 24-byte nonce for every message
-let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-
-// Encrypt
+let key = random(size: 32)
 let plaintext = "Secret message".data(using: .utf8)!
-let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
-    message: plaintext,
-    aad: nil,
-    nonce: nonce,
-    key: key
-)
 
-// Decrypt (the nonce is not secret, so store or send it with the ciphertext)
-let decrypted = try aead.xchacha20poly1305IetfDecrypt(
-    ciphertext: ciphertext,
-    aad: nil,
-    nonce: nonce,
-    key: key
-)
+let box = try SecretBox(key: key)
+let encrypted = try box.encrypt(plaintext: plaintext)
+
+// `combined` is the nonce followed by the ciphertext, so it is all you need to store or send
+let decrypted = try box.decrypt(ciphertext: encrypted.combined)
 print(String(data: decrypted, encoding: .utf8)!) // "Secret message"
+
+// Aead also authenticates data that travels with the message without encrypting it
+let aead = try Aead(key: key)
+let header = "v1".data(using: .utf8)!
+let sealed = try aead.encrypt(plaintext: plaintext, aad: header)
+let opened = try aead.decrypt(ciphertext: sealed.combined, aad: header)
 ```
+
+The low-level ``CryptoSecretBox`` and ``CryptoAead`` bindings take an explicit nonce instead.
 
 ### 3. Public-Key Encryption
 
-For secure communication between two parties, use the authenticated box from the low-level ``CryptoBox`` binding:
+For secure communication between two parties, use ``Box``:
 
 ```swift
 // Alice and Bob each generate a key pair
 let aliceKeyPair = KeyPair.generate()
 let bobKeyPair = KeyPair.generate()
 
-let box = Sodium().cryptoBox
-let nonce = random(size: Int(box.nonceBytes))
-
-// Alice encrypts a message for Bob
+// Alice encrypts a message for Bob (a random nonce is generated for her)
 let message = "Hello Bob!".data(using: .utf8)!
-let ciphertext = try box.easy(
-    message: message,
-    nonce: nonce,
-    publicKey: bobKeyPair.publicKey.toBytes(),
-    secretKey: aliceKeyPair.secretKey.toBytes()
-)
+let aliceBox = try Box(privateKey: aliceKeyPair.secretKey, publicKey: bobKeyPair.publicKey)
+let encrypted = try aliceBox.encrypt(plaintext: message)
 
 // Bob decrypts the message from Alice
-let decrypted = try box.openEasy(
-    ciphertext: ciphertext,
-    nonce: nonce,
-    publicKey: aliceKeyPair.publicKey.toBytes(),
-    secretKey: bobKeyPair.secretKey.toBytes()
-)
+let bobBox = try Box(privateKey: bobKeyPair.secretKey, publicKey: aliceKeyPair.publicKey)
+let decrypted = try bobBox.decrypt(ciphertext: encrypted.combined)
 print(String(data: decrypted, encoding: .utf8)!) // "Hello Bob!"
 ```
 
@@ -244,7 +226,7 @@ let keyPair = KeyPair.generate()
 
 ### 2. Random Number Generation
 
-``random(size:)`` and the `generate()` methods use the system's cryptographically secure random number generator:
+``random(size:)`` and the `generate()` methods use libsodium's `randombytes_buf`, which reads the operating system's cryptographically secure random number generator:
 
 ```swift
 // Generate secure random bytes
@@ -261,13 +243,9 @@ Always handle potential errors appropriately:
 
 ```swift
 func secureEncrypt(data: Data, key: Data) -> Data? {
-    let aead = Sodium().cryptoAead
     do {
-        let nonce = random(size: Int(aead.xchacha20poly1305IetfNpubBytes))
-        let ciphertext = try aead.xchacha20poly1305IetfEncrypt(
-            message: data, aad: nil, nonce: nonce, key: key
-        )
-        return nonce + ciphertext // Keep the nonce with the ciphertext
+        // The combined bytes keep the nonce with the ciphertext
+        return try Aead(key: key).encrypt(plaintext: data).combined
     } catch {
         // Log error securely (don't log sensitive data!)
         print("Encryption failed: \(error.localizedDescription)")
@@ -307,7 +285,7 @@ Now that you understand the basics, explore more advanced features:
 - **<doc:SecurityGuide>** for security practices and common pitfalls
 - **Password hashing** with ``Argon2id``, ``Argon2i`` and ``Scrypt``
 - **Key derivation** with the `kdf(size:password:salt:opsLimit:memLimit:encoder:)` methods on the password hashing types
-- **Advanced encryption** with additional authenticated data (AEAD) through ``CryptoAead``, and streaming encryption through ``CryptoSecretStream``
+- **Advanced encryption** with additional authenticated data through ``Aead`` or ``CryptoAead``, key exchange through ``CryptoKx``, and streaming encryption through ``CryptoSecretStream``
 
 ## Getting Help
 
