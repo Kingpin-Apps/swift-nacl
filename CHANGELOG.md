@@ -1,3 +1,18 @@
+## 2.0.0 (2026-11-06)
+
+### Feat
+
+- throw from Encoder.decode on malformed input instead of trapping
+
+### Fix
+
+- reject VRFSigningKey bytes whose public key does not match the seed
+- default PwHash scrypt strings to the scrypt interactive limits
+- validate scrypt parameters before arithmetic and allocation
+- NUL-terminate Argon2 hashes before verification
+- require exact key lengths in the scalarmult and CryptoSign bindings
+- reject AEAD ciphertexts and secretstream chunks shorter than the tag
+
 ## 1.1.0 (2026-11-06)
 
 ### Feat
