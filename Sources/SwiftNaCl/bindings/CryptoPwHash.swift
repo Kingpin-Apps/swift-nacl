@@ -432,9 +432,16 @@ public struct CryptoPwHash {
      */
     func strVerify(passwd_hash: Data, passwd: Data) throws -> Bool {
         try ensure(
-            passwd_hash.count <= 128, raising: .valueError("Hash must be at most 128 bytes long"))
+            passwd_hash.count <= strBytes, raising: .valueError("Hash must be at most \(strBytes) bytes long"))
 
-        let ret = passwd_hash.withUnsafeBytes { passwdHashPtr in
+        // libsodium parses the hash as a C string, so give it an owned, NUL-terminated
+        // copy; otherwise it reads past the caller's buffer looking for the terminator.
+        var hash = Data(passwd_hash)
+        while hash.last == 0 { hash.removeLast() }
+        guard !hash.contains(0), hash.count < strBytes else { return false }
+        hash.append(0)
+
+        let ret = hash.withUnsafeBytes { passwdHashPtr in
             passwd.withUnsafeBytes { passwdPtr in
                 guard let passwdHashPtr = passwdHashPtr.baseAddress,
                     let passwdPtr = passwdPtr.baseAddress
