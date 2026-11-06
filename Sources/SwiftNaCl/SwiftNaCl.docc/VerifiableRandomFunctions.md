@@ -136,7 +136,7 @@ Common error scenarios:
 
 VRF keys and seeds are stored in ordinary `Data` values and are not zeroed automatically when they are released, so follow good security practices:
 
-- Don't log sensitive data like signing keys or seeds. ``VRFSigningKey/fingerprint()`` still includes 8 bytes of the secret key, so log the verifying key instead
+- Don't log sensitive data like signing keys or seeds. To identify a key in logs, use ``VRFSigningKey/fingerprint()`` (a hash of the public verifying key) or the verifying key itself
 - Use secure storage mechanisms for long-term key storage
 - Be cautious when serializing keys to disk or network
 

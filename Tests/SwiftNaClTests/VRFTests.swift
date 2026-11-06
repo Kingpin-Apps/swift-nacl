@@ -154,6 +154,36 @@ struct VRFTests {
         #expect(fingerprint.count == 19) // 16 hex chars + "..."
     }
 
+    @Test("fingerprint never contains secret-key bytes")
+    func testVRFSigningKeyFingerprintHidesSecret() async throws {
+        for _ in 0..<32 {
+            let keyPair = VRFKeyPair.generate()
+            let signingKey = keyPair.signingKey
+            let fingerprintHex = String(signingKey.fingerprint().dropLast(3))
+            let secretHex = signingKey.bytes.map { String(format: "%02x", $0) }.joined()
+            let seedHex = signingKey.seed.hexEncodedString()
+
+            // No 8-byte window of the 64-byte secret key (seed or embedded
+            // public key) appears in the fingerprint.
+            #expect(!secretHex.contains(fingerprintHex))
+            #expect(!seedHex.contains(fingerprintHex))
+            #expect(fingerprintHex != String(secretHex.prefix(16)))
+        }
+    }
+
+    @Test("fingerprint is the BLAKE2b-256 prefix of the verifying key")
+    func testVRFSigningKeyFingerprintDerivation() async throws {
+        let seed = try VRFSeed(bytes: Data(repeating: 0x42, count: VRF.seedBytes))
+        let keyPair = try VRFKeyPair.from(seed: seed)
+        let digest = try Hash().blake2b(
+            data: keyPair.verifyingKey.bytes, digestSize: 32, encoder: RawEncoder.self)
+        let expected = digest.prefix(8).map { String(format: "%02x", $0) }.joined() + "..."
+
+        #expect(keyPair.signingKey.fingerprint() == expected)
+        #expect(try VRFKeyPair.from(seed: seed).signingKey.fingerprint() == expected)
+        #expect(!expected.hasPrefix("42424242"))
+    }
+
     // MARK: - VRF Verifying Key Tests
 
     @Test("creates verifying key from bytes of correct size")

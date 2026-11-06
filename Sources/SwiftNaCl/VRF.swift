@@ -289,18 +289,32 @@ public struct VRFSigningKey: Equatable, Hashable, Sendable {
         return try VRFProof(bytes: proofBytes)
     }
     
-    /// Returns a truncated hexadecimal representation (for logging/debugging).
+    /// Returns a short, non-secret identifier for this key (for logging/debugging).
     ///
-    /// The fingerprint is the first 8 bytes (16 hex characters) of the secret
-    /// key followed by `...`.
+    /// The fingerprint is the first 8 bytes (16 hex characters) of the
+    /// BLAKE2b-256 hash of the public ``verifyingKey``, followed by `...`.
+    /// It is derived only from public data, so it never reveals the seed or
+    /// any other secret-key bytes, and two signing keys with the same
+    /// verifying key have the same fingerprint.
     ///
-    /// - Warning: Those 8 bytes are part of the secret seed, so the fingerprint
-    ///   still reveals secret material. To identify a key in logs, prefer the
-    ///   public ``verifyingKey`` (for example `verifyingKey.hexEncodedString()`).
+    /// - Returns: A 19-character string such as `"3f1c0a9be2d47751..."`.
     public func fingerprint() -> String {
-        return String(_bytes.hexEncodedString().prefix(16)) + "..."
+        let publicKey = verifyingKey.bytes
+        var digest = [UInt8](repeating: 0, count: 32)
+        let result = publicKey.withUnsafeBytes { publicKeyPtr in
+            crypto_generichash(
+                &digest,
+                digest.count,
+                publicKeyPtr.bindMemory(to: UInt8.self).baseAddress,
+                UInt64(publicKey.count),
+                nil,
+                0
+            )
+        }
+        precondition(result == 0, "BLAKE2b hashing of the verifying key failed")
+        return String(Data(digest.prefix(8)).hexEncodedString()) + "..."
     }
-    
+
     // MARK: - Hashable
     
     public func hash(into hasher: inout Hasher) {
