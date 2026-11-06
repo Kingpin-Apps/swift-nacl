@@ -21,7 +21,6 @@ struct SecretBoxTests {
         #expect(secretBox.nonceSize == 24)
         #expect(secretBox.macBytes == 16)
         #expect(secretBox.macBytes == sodium.cryptoSecretBox.macBytes)
-        #expect(secretBox.messageBytesMax == sodium.cryptoSecretBox.messageBytesMax)
         #expect(secretBox.messageBytesMax == UInt64(UInt.max) - 16)
     }
 

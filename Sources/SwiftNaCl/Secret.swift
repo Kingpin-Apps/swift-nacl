@@ -1,3 +1,4 @@
+import Clibsodium
 import Foundation
 
 nonisolated(unsafe) private let sodium = Sodium()
@@ -48,7 +49,7 @@ public class SecretBox {
         keySize = sodium.cryptoSecretBox.keyBytes
         nonceSize = sodium.cryptoSecretBox.nonceBytes
         macBytes = sodium.cryptoSecretBox.macBytes
-        messageBytesMax = sodium.cryptoSecretBox.messageBytesMax
+        messageBytesMax = UInt64(UInt(bitPattern: crypto_secretbox_messagebytes_max()))
 
         try ensure(self.key.count == keySize, raising: .valueError("The key must be exactly \(keySize) bytes long"))
     }

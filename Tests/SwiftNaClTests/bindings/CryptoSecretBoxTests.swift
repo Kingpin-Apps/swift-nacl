@@ -206,4 +206,12 @@ struct CryptoSecretBoxTests {
 
         #expect(plaintext.isEmpty)
     }
+
+    @Test("messageBytesMax is positive and the clamped libsodium value")
+    func messageBytesMaxClamped() async throws {
+        let raw = UInt(bitPattern: crypto_secretbox_messagebytes_max())
+        #expect(cryptoSecretBox.messageBytesMax > 0)
+        #expect(cryptoSecretBox.messageBytesMax == Int(clamping: raw))
+        #expect(raw == UInt.max - UInt(cryptoSecretBox.macBytes))
+    }
 }
