@@ -133,4 +133,23 @@ struct HashlibTests {
             try hashlib.scrypt(password: password, salt: salt, n: n, r: r, p: p, maxmem: invalidMaxmem, dklen: dklen)
         }
     }
+
+    @Test("Blake2b allows digests up to 64 bytes and rejects 65")
+    func testBlake2bMaxDigestSize() async throws {
+        let data = Data("abc".utf8)
+        let max = try Blake2b(data: data)
+        #expect(max.maxDigestSize == 64)
+        #expect(max.maxKeySize == 64)
+        #expect(try max.digest().count == 32)  // default size is unchanged
+
+        let wide = try Blake2b(data: data, digestSize: 64)
+        let digest = try wide.digest()
+        #expect(digest.count == 64)
+        #expect(digest == (try Hash().blake2b(data: data, digestSize: 64, encoder: RawEncoder.self)))
+
+        #expect(throws: SodiumError.self) {
+            _ = try Blake2b(data: data, digestSize: 65)
+        }
+    }
+
 }

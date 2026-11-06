@@ -2,9 +2,9 @@ import Clibsodium
 import Foundation
 
 public class Blake2b {
-    /// Maximum digest size
+    /// Maximum digest size in bytes (64).
     public let maxDigestSize: Int
-    /// Maximum key size
+    /// Maximum key size in bytes (64).
     public let maxKeySize: Int
     /// Personalization size
     public let personSize: Int
@@ -20,15 +20,15 @@ public class Blake2b {
     ///
     /// - Parameters:
     ///   - data: The data to hash.
-    ///   - digestSize: The requested digest size; must be at most `maxDigestSize`; the default digest size is `bytes`.
+    ///   - digestSize: The requested digest size; must be at most ``maxDigestSize`` (64). Defaults to 32 bytes.
     ///   - key: The key to be set for keyed MAC/PRF usage; if set, the key must be at most `maxKeySize` long.
     ///   - salt: An initialization salt at most `saltSize` long; it will be zero-padded if needed.
     ///   - person: A personalization string at most `personSize` long; it will be zero-padded if needed.
     public init(data: Data = Data(), digestSize: Int? = nil, key: Data = Data(), salt: Data = Data(), person: Data = Data()) throws {
         self.sodium = Sodium()
         
-        self.maxDigestSize = sodium.cryptoGenericHash.bytes
-        self.maxKeySize = sodium.cryptoGenericHash.keyBytes
+        self.maxDigestSize = sodium.cryptoGenericHash.bytesMax
+        self.maxKeySize = sodium.cryptoGenericHash.keyBytesMax
         self.personSize = sodium.cryptoGenericHash.personalBytes
         self.saltSize = sodium.cryptoGenericHash.saltBytes
         
@@ -37,9 +37,9 @@ public class Blake2b {
                 key: key,
                 salt: salt,
                 person: person,
-                digestSize: digestSize ?? maxDigestSize
+                digestSize: digestSize ?? sodium.cryptoGenericHash.bytes
             )
-        self.digestSize = digestSize ?? maxDigestSize
+        self.digestSize = digestSize ?? sodium.cryptoGenericHash.bytes
 
         if !data.isEmpty {
             try self.update(data: data)
