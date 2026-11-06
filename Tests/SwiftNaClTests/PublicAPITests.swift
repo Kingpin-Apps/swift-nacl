@@ -216,3 +216,34 @@ struct BindingPublicAPITests {
         #expect(try shortHash.siphash24(data: message, key: key) == HexEncoder.decode(data: Data("e545be4961ca29a1".utf8)))
     }
 }
+
+@Suite("Ed25519ph state and scalar inversion public API (no @testable import)")
+struct SignAndCorePublicAPITests {
+    let sodium = Sodium()
+
+    @Test("an Ed25519ph signature made from public API calls verifies")
+    func ed25519phRoundTrip() throws {
+        let sign = sodium.cryptoSign
+        let (publicKey, secretKey) = try sign.keypair()
+
+        let signer = try CryptoSignEd25519phState()
+        try sign.ed25519phUpdate(edph: signer, pmsg: Data("part one, ".utf8))
+        try sign.ed25519phUpdate(edph: signer, pmsg: Data("part two".utf8))
+        let signature = try sign.ed25519phFinalCreate(edph: signer, sk: secretKey)
+
+        let verifier = try CryptoSignEd25519phState()
+        try sign.ed25519phUpdate(edph: verifier, pmsg: Data("part one, part two".utf8))
+        #expect(try sign.ed25519phFinalVerify(edph: verifier, signature: signature, pk: publicKey))
+    }
+
+    @Test("ed25519ScalarInvert returns the multiplicative inverse modulo L")
+    func scalarInvert() throws {
+        let core = sodium.cryptoCore
+        var two = Data(count: core.ed25519ScalarBytes)
+        two[0] = 2
+        let inverse = try core.ed25519ScalarInvert(two)
+        var one = Data(count: core.ed25519ScalarBytes)
+        one[0] = 1
+        #expect(try core.ed25519ScalarMul(two, inverse) == one)
+    }
+}

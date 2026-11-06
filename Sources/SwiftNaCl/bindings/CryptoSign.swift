@@ -9,7 +9,10 @@ import Clibsodium
 public class CryptoSignEd25519phState {
     var state: Data
     
-    init() throws {
+    /// Creates a fresh Ed25519ph state (`crypto_sign_ed25519ph_init`).
+    ///
+    /// - Throws: ``SodiumError/runtimeError(_:)`` if libsodium cannot initialize the state.
+    public init() throws {
         state = Data(count: crypto_sign_ed25519ph_statebytes())
         
         let rc: Int32 = state.withUnsafeMutableBytes { (statePtr: UnsafeMutableRawBufferPointer) -> Int32 in

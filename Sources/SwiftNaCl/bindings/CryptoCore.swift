@@ -88,7 +88,7 @@ public struct CryptoCore {
     ///
     /// - Returns: A 32-byte scalar.
     /// - Throws: A ``SodiumError`` if input is invalid.
-    func ed25519ScalarInvert(_ s: Data) throws -> Data {
+    public func ed25519ScalarInvert(_ s: Data) throws -> Data {
         try ensure(s.count == ed25519ScalarBytes, raising: .typeError("Integer s must be a \(ed25519ScalarBytes) long bytes sequence"))
         
         var r = [UInt8](repeating: 0, count: Int(ed25519ScalarBytes))
