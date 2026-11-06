@@ -208,6 +208,6 @@ public struct CryptoGenericHash {
         
         try ensure(rc == 0, raising: .runtimeError("Unexpected failure"))
 
-        return digest
+        return Data(digest.prefix(state.digestSize))
     }
 }

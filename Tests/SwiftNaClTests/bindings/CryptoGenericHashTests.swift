@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import SwiftNaCl
@@ -72,6 +73,17 @@ struct CryptoGenericHashTests {
 
         let hash = try cryptoGenericHash.blake2bFinal(state: state)
 
-        #expect(hash.count == cryptoGenericHash.bytesMax, "Hash length mismatch")
+        #expect(hash.count == digestSize, "Hash length mismatch")
+    }
+
+    @Test("blake2bFinal returns exactly the requested digest size and matches one-shot hashing", arguments: [16, 32, 48, 64])
+    func blake2bFinalDigestSize(size: Int) async throws {
+        let generic = Sodium().cryptoGenericHash
+        let data = Data("streamed input".utf8)
+        let state = try generic.blake2bInit(digestSize: size)
+        try generic.blake2bUpdate(state: state, data: data)
+        let digest = try generic.blake2bFinal(state: state)
+        #expect(digest.count == size)
+        #expect(digest == (try generic.blake2bSaltPersonal(data: data, digestSize: size)))
     }
 }

@@ -34,7 +34,7 @@ struct HashlibTests {
         let blake2b = try Blake2b(digestSize: sodium.cryptoGenericHash.bytes)
         try blake2b.update(data: message)
         let digest = try blake2b.digest()
-        #expect(digest.count == 64, "Blake2b update digest size mismatch")
+        #expect(digest.count == sodium.cryptoGenericHash.bytes, "Blake2b update digest size mismatch")
     }
 
     @Test("Blake2b digest generates correct hash size")
@@ -47,7 +47,7 @@ struct HashlibTests {
             person: person
         )
         let digest = try blake2b.digest()
-        #expect(digest.count == 64, "Blake2b digest size mismatch")
+        #expect(digest.count == sodium.cryptoGenericHash.bytes, "Blake2b digest size mismatch")
     }
 
     @Test("Blake2b hexdigest generates valid hex string")
