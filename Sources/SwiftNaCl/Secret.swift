@@ -34,7 +34,7 @@ class SecretBox {
         macBytes = sodium.cryptoSecretBox.macBytes
         messageBytesMax = sodium.cryptoSecretBox.messageBytesMax
         
-        try ensure(key.count == keySize, raising: .valueError("Invalid key"))
+        try ensure(self.key.count == keySize, raising: .valueError("The key must be exactly \(keySize) bytes long"))
     }
 
     public func encrypt(plaintext: Data, nonce: Data? = nil, encoder: Encoder.Type = RawEncoder.self) throws -> EncryptedMessage {
@@ -71,13 +71,18 @@ class SecretBox {
          - parameter encoder: The encoder used to decode the ciphertext.
          - returns: Data
          */
-        let decodedCiphertext = encoder.decode(data: ciphertext)
-        let nonce = nonce ?? decodedCiphertext.prefix(nonceSize)
-        let ciphertext = decodedCiphertext.dropFirst(nonceSize)
-        
-        try ensure(nonce.count == nonceSize, raising: .valueError("The nonce must be exactly \(nonceSize) bytes long"))
+        var ciphertext = encoder.decode(data: ciphertext)
+        let resolvedNonce: Data
+        if let nonce {
+            resolvedNonce = nonce
+        } else {
+            resolvedNonce = Data(ciphertext.prefix(nonceSize))
+            ciphertext = Data(ciphertext.dropFirst(nonceSize))
+        }
 
-        return try sodium.cryptoSecretBox.openEasy(ciphertext: ciphertext, nonce: nonce, key: key)
+        try ensure(resolvedNonce.count == nonceSize, raising: .valueError("The nonce must be exactly \(nonceSize) bytes long"))
+
+        return try sodium.cryptoSecretBox.openEasy(ciphertext: ciphertext, nonce: resolvedNonce, key: key)
     }
 }
 
@@ -116,7 +121,7 @@ class Aead {
         macBytes = sodium.cryptoAead.xchacha20poly1305IetfABytes
         messageBytesMax = sodium.cryptoAead.xchacha20poly1305IetfMessageBytesMax
         
-        try ensure(key.count == keySize, raising: .valueError("Invalid key"))
+        try ensure(self.key.count == keySize, raising: .valueError("The key must be exactly \(keySize) bytes long"))
     }
 
     public func encrypt(plaintext: Data, aad: Data = Data(), nonce: Data? = nil, encoder: Encoder.Type = RawEncoder.self) throws -> EncryptedMessage {
@@ -151,14 +156,19 @@ class Aead {
          - parameter encoder: The encoder used to decode the ciphertext.
          - returns: Data
          */
-        let decodedCiphertext = encoder.decode(data: ciphertext)
-        let nonce = nonce ?? decodedCiphertext.prefix(nonceSize)
-        let ciphertext = decodedCiphertext.dropFirst(nonceSize)
-        
-        try ensure(nonce.count == nonceSize, raising: .valueError("The nonce must be exactly \(nonceSize) bytes long"))
+        var ciphertext = encoder.decode(data: ciphertext)
+        let resolvedNonce: Data
+        if let nonce {
+            resolvedNonce = nonce
+        } else {
+            resolvedNonce = Data(ciphertext.prefix(nonceSize))
+            ciphertext = Data(ciphertext.dropFirst(nonceSize))
+        }
+
+        try ensure(resolvedNonce.count == nonceSize, raising: .valueError("The nonce must be exactly \(nonceSize) bytes long"))
 
         return try sodium.cryptoAead.xchacha20poly1305IetfDecrypt(
-            ciphertext: ciphertext, aad: aad, nonce: nonce, key: key)
+            ciphertext: ciphertext, aad: aad, nonce: resolvedNonce, key: key)
     }
 }
 
