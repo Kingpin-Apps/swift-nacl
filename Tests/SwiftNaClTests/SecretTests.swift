@@ -41,7 +41,7 @@ struct SecretBoxTests {
         let secretBox = try SecretBox(key: Data(repeating: 0, count: sodium.cryptoSecretBox.keyBytes))
         let encryptedMessage = try secretBox.encrypt(plaintext: message)
         let decryptedMessage = try secretBox.decrypt(
-            ciphertext: encryptedMessage.getMessage
+            ciphertext: encryptedMessage.combined
         )
         #expect(decryptedMessage == message, "SecretBox encrypt/decrypt failed")
     }
@@ -52,7 +52,7 @@ struct SecretBoxTests {
         let nonce = Data(repeating: 0, count: sodium.cryptoSecretBox.nonceBytes)
         let encryptedMessage = try secretBox.encrypt(plaintext: message, nonce: nonce)
         let decryptedMessage = try secretBox.decrypt(
-            ciphertext: encryptedMessage.getCiphertext, nonce: nonce)
+            ciphertext: encryptedMessage.ciphertext, nonce: nonce)
         #expect(decryptedMessage == message, "SecretBox encrypt/decrypt with nonce failed")
     }
 
@@ -61,10 +61,10 @@ struct SecretBoxTests {
         let secretBox = try SecretBox(key: Data(repeating: 7, count: sodium.cryptoSecretBox.keyBytes))
         let nonce = Data(repeating: 1, count: sodium.cryptoSecretBox.nonceBytes)
         let encryptedMessage = try secretBox.encrypt(plaintext: message, nonce: nonce)
-        #expect(encryptedMessage.getCiphertext.count == message.count + sodium.cryptoSecretBox.macBytes)
-        #expect(try secretBox.decrypt(ciphertext: encryptedMessage.getCiphertext, nonce: nonce) == message)
+        #expect(encryptedMessage.ciphertext.count == message.count + sodium.cryptoSecretBox.macBytes)
+        #expect(try secretBox.decrypt(ciphertext: encryptedMessage.ciphertext, nonce: nonce) == message)
         #expect(throws: SodiumError.self) {
-            _ = try secretBox.decrypt(ciphertext: encryptedMessage.getMessage, nonce: nonce)
+            _ = try secretBox.decrypt(ciphertext: encryptedMessage.combined, nonce: nonce)
         }
     }
 
@@ -75,7 +75,7 @@ struct SecretBoxTests {
         let fromHex = try SecretBox(key: hexKey, encoder: HexEncoder.self)
         let fromRaw = try SecretBox(key: rawKey)
         let encrypted = try fromHex.encrypt(plaintext: message)
-        #expect(try fromRaw.decrypt(ciphertext: encrypted.getMessage) == message)
+        #expect(try fromRaw.decrypt(ciphertext: encrypted.combined) == message)
     }
 
     @Test("decrypt throws with invalid nonce size")
@@ -84,7 +84,7 @@ struct SecretBoxTests {
         let encryptedMessage = try secretBox.encrypt(plaintext: message)
         let invalidNonce = Data(repeating: 0, count: sodium.cryptoSecretBox.nonceBytes - 1)
         #expect(throws: Error.self) {
-            _ = try secretBox.decrypt(ciphertext: encryptedMessage.getMessage, nonce: invalidNonce)
+            _ = try secretBox.decrypt(ciphertext: encryptedMessage.combined, nonce: invalidNonce)
         }
     }
 }
@@ -114,7 +114,7 @@ struct AeadTests {
     func testAeadEncryptDecrypt() async throws {
         let aead = try Aead(key: Data(repeating: 0, count: sodium.cryptoAead.xchacha20poly1305IetfKeyBytes))
         let encryptedMessage = try aead.encrypt(plaintext: message, aad: aad)
-        let decryptedMessage = try aead.decrypt(ciphertext: encryptedMessage.getMessage, aad: aad)
+        let decryptedMessage = try aead.decrypt(ciphertext: encryptedMessage.combined, aad: aad)
         #expect(decryptedMessage == message, "Aead encrypt/decrypt failed")
     }
 
@@ -124,7 +124,7 @@ struct AeadTests {
         let nonce = Data(repeating: 0, count: sodium.cryptoAead.xchacha20poly1305IetfNpubBytes)
         let encryptedMessage = try aead.encrypt(plaintext: message, aad: aad, nonce: nonce)
         let decryptedMessage = try aead.decrypt(
-            ciphertext: encryptedMessage.getCiphertext, aad: aad, nonce: nonce)
+            ciphertext: encryptedMessage.ciphertext, aad: aad, nonce: nonce)
         #expect(decryptedMessage == message, "Aead encrypt/decrypt with nonce failed")
     }
 
@@ -133,9 +133,9 @@ struct AeadTests {
         let aead = try Aead(key: Data(repeating: 7, count: sodium.cryptoAead.xchacha20poly1305IetfKeyBytes))
         let nonce = Data(repeating: 1, count: sodium.cryptoAead.xchacha20poly1305IetfNpubBytes)
         let encryptedMessage = try aead.encrypt(plaintext: message, aad: aad, nonce: nonce)
-        #expect(try aead.decrypt(ciphertext: encryptedMessage.getCiphertext, aad: aad, nonce: nonce) == message)
+        #expect(try aead.decrypt(ciphertext: encryptedMessage.ciphertext, aad: aad, nonce: nonce) == message)
         #expect(throws: SodiumError.self) {
-            _ = try aead.decrypt(ciphertext: encryptedMessage.getMessage, aad: aad, nonce: nonce)
+            _ = try aead.decrypt(ciphertext: encryptedMessage.combined, aad: aad, nonce: nonce)
         }
     }
 
@@ -145,16 +145,16 @@ struct AeadTests {
         let fromHex = try Aead(key: HexEncoder.encode(data: rawKey), encoder: HexEncoder.self)
         let fromRaw = try Aead(key: rawKey)
         let encrypted = try fromHex.encrypt(plaintext: message, aad: aad)
-        #expect(try fromRaw.decrypt(ciphertext: encrypted.getMessage, aad: aad) == message)
+        #expect(try fromRaw.decrypt(ciphertext: encrypted.combined, aad: aad) == message)
     }
 
     @Test("round-trips with the default empty AAD and an empty message")
     func testAeadEmptyAadAndMessage() async throws {
         let aead = try Aead(key: Data(repeating: 3, count: sodium.cryptoAead.xchacha20poly1305IetfKeyBytes))
         let encrypted = try aead.encrypt(plaintext: message)
-        #expect(try aead.decrypt(ciphertext: encrypted.getMessage) == message)
+        #expect(try aead.decrypt(ciphertext: encrypted.combined) == message)
         let empty = try aead.encrypt(plaintext: Data())
-        #expect(try aead.decrypt(ciphertext: empty.getMessage) == Data())
+        #expect(try aead.decrypt(ciphertext: empty.combined) == Data())
     }
 
     @Test("decrypt throws with invalid nonce size")
@@ -164,7 +164,7 @@ struct AeadTests {
         let invalidNonce = Data(
             repeating: 0, count: sodium.cryptoAead.xchacha20poly1305IetfNpubBytes - 1)
         #expect(throws: Error.self) {
-            _ = try aead.decrypt(ciphertext: encryptedMessage.getMessage, aad: aad, nonce: invalidNonce)
+            _ = try aead.decrypt(ciphertext: encryptedMessage.combined, aad: aad, nonce: invalidNonce)
         }
     }
 }

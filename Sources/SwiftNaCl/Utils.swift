@@ -1,13 +1,35 @@
 import Clibsodium
 import Foundation
 
-/**
- A Data subclass that holds a message that has been encrypted by a `SecretBox`.
- */
+/// The result of ``Box/encrypt(plaintext:nonce:encoder:)``,
+/// ``SecretBox/encrypt(plaintext:nonce:encoder:)`` or
+/// ``Aead/encrypt(plaintext:aad:nonce:encoder:)``.
+///
+/// Mirrors PyNaCl's `EncryptedMessage`: it carries the ``nonce``, the bare
+/// ``ciphertext`` (which includes the authentication tag), and the ``combined``
+/// bytes (`nonce + ciphertext`). Each value is already encoded with the
+/// encoder passed to `encrypt`.
+///
+/// Pass ``combined`` to `decrypt` on its own, or pass ``ciphertext`` together
+/// with the raw nonce:
+///
+/// ```swift
+/// let encrypted = try box.encrypt(plaintext: message)
+/// let a = try box.decrypt(ciphertext: encrypted.combined)
+/// let b = try box.decrypt(ciphertext: encrypted.ciphertext, nonce: encrypted.nonce)
+/// ```
 public class EncryptedMessage {
-    private var nonce: Data
-    private var ciphertext: Data
-    private var combined: Data
+    /// The nonce used to encrypt the message, encoded with the `encrypt` encoder.
+    public let nonce: Data
+
+    /// The ciphertext, including the authentication tag but not the nonce,
+    /// encoded with the `encrypt` encoder.
+    public let ciphertext: Data
+
+    /// The nonce followed by the ciphertext (`nonce + ciphertext`), encoded
+    /// with the `encrypt` encoder. This is what PyNaCl returns as the bytes
+    /// value of an `EncryptedMessage`.
+    public let combined: Data
 
     init(nonce: Data, ciphertext: Data, combined: Data) {
         self.nonce = nonce
@@ -17,27 +39,6 @@ public class EncryptedMessage {
 
     class func fromParts(nonce: Data, ciphertext: Data, combined: Data) -> EncryptedMessage {
         return EncryptedMessage(nonce: nonce, ciphertext: ciphertext, combined: combined)
-    }
-
-    /**
-     The nonce used during the encryption of the `EncryptedMessage`.
-     */
-    var getNonce: Data {
-        return nonce
-    }
-
-    /**
-     The ciphertext contained within the `EncryptedMessage`.
-     */
-    var getCiphertext: Data {
-        return ciphertext
-    }
-
-    /**
-     The combined contained within the `EncryptedMessage`.
-     */
-    var getMessage: Data {
-        return combined
     }
 }
 

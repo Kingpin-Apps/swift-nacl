@@ -245,8 +245,8 @@ public class Box {
         var nonceData = nonce
 
         if nonceData == nil {
-            nonceData = ciphertext.prefix(self.NONCE_SIZE)
-            ciphertext = ciphertext.suffix(from: self.NONCE_SIZE)
+            nonceData = Data(ciphertext.prefix(self.NONCE_SIZE))
+            ciphertext = Data(ciphertext.dropFirst(self.NONCE_SIZE))
         }
 
         try ensure(

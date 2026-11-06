@@ -109,7 +109,7 @@ struct BoxTests {
     func testBoxEncryptDecrypt() async throws {
         let box = try Box(privateKey: privateKey, publicKey: privateKey.publicKey)
         let encryptedMessage = try box.encrypt(plaintext: message)
-        let decryptedMessage = try box.decrypt(ciphertext: encryptedMessage.getMessage)
+        let decryptedMessage = try box.decrypt(ciphertext: encryptedMessage.combined)
         #expect(decryptedMessage == message, "Box encrypt/decrypt failed")
     }
 
@@ -119,7 +119,7 @@ struct BoxTests {
         let nonce = Data(repeating: 0, count: box.NONCE_SIZE)
         let encryptedMessage = try box.encrypt(plaintext: message, nonce: nonce)
         let decryptedMessage = try box.decrypt(
-            ciphertext: encryptedMessage.getCiphertext, nonce: nonce)
+            ciphertext: encryptedMessage.ciphertext, nonce: nonce)
         #expect(decryptedMessage == message, "Box encrypt/decrypt with nonce failed")
     }
 
@@ -129,7 +129,7 @@ struct BoxTests {
         let encryptedMessage = try box.encrypt(plaintext: message)
         let invalidNonce = Data(repeating: 0, count: box.NONCE_SIZE - 1)
         #expect(throws: Error.self) {
-            try box.decrypt(ciphertext: encryptedMessage.getCiphertext, nonce: invalidNonce)
+            try box.decrypt(ciphertext: encryptedMessage.ciphertext, nonce: invalidNonce)
         }
     }
 }

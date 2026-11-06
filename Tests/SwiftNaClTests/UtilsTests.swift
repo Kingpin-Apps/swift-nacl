@@ -13,12 +13,12 @@ struct EncryptedMessageTests {
         let combined = nonce + ciphertext
         let encryptedMessage = EncryptedMessage(
             nonce: nonce, ciphertext: ciphertext, combined: combined)
-        #expect(encryptedMessage.getNonce == nonce, "EncryptedMessage nonce mismatch")
+        #expect(encryptedMessage.nonce == nonce, "EncryptedMessage nonce mismatch")
         #expect(
-            encryptedMessage.getCiphertext == ciphertext,
+            encryptedMessage.ciphertext == ciphertext,
             "EncryptedMessage ciphertext mismatch"
         )
-        #expect(encryptedMessage.getMessage == combined, "EncryptedMessage combined mismatch")
+        #expect(encryptedMessage.combined == combined, "EncryptedMessage combined mismatch")
     }
 
     @Test("creates from parts and preserves values")
@@ -26,12 +26,12 @@ struct EncryptedMessageTests {
         let combined = nonce + ciphertext
         let encryptedMessage = EncryptedMessage.fromParts(
             nonce: nonce, ciphertext: ciphertext, combined: combined)
-        #expect(encryptedMessage.getNonce == nonce, "EncryptedMessage nonce mismatch")
+        #expect(encryptedMessage.nonce == nonce, "EncryptedMessage nonce mismatch")
         #expect(
-            encryptedMessage.getCiphertext == ciphertext,
+            encryptedMessage.ciphertext == ciphertext,
             "EncryptedMessage ciphertext mismatch"
         )
-        #expect(encryptedMessage.getMessage == combined, "EncryptedMessage combined mismatch")
+        #expect(encryptedMessage.combined == combined, "EncryptedMessage combined mismatch")
     }
 }
 
