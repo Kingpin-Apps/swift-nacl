@@ -33,13 +33,53 @@ public class HexEncoder: Encoder {
     }
 }
 
+/// Encodes and decodes Base16 (RFC 4648), the uppercase hexadecimal alphabet.
+///
+/// Matches PyNaCl's `Base16Encoder`: ``encode(data:)`` produces uppercase
+/// hex digits (`0-9`, `A-F`). ``decode(data:)`` accepts uppercase or lowercase
+/// digits. For lowercase output use ``HexEncoder``.
+///
+/// Like the other encoders, ``decode(data:)`` traps on malformed input (an odd
+/// number of characters or a non-hex character).
 public class Base16Encoder: Encoder {
+    private static let alphabet = Array("0123456789ABCDEF".utf8)
+
+    /// Encodes `data` as uppercase Base16 ASCII bytes.
+    ///
+    /// - Parameter data: The bytes to encode.
+    /// - Returns: Two uppercase hex digits per input byte, as UTF-8 data.
     public static func encode(data: Data) -> Data {
-        return data.base64EncodedString(options: .init(rawValue: 0)).data(using: .utf8)!
+        var output = Data(capacity: data.count * 2)
+        for byte in data {
+            output.append(alphabet[Int(byte >> 4)])
+            output.append(alphabet[Int(byte & 0x0f)])
+        }
+        return output
     }
 
+    /// Decodes Base16 ASCII bytes back to raw bytes.
+    ///
+    /// - Parameter data: Hex digits as UTF-8 data; uppercase and lowercase are both accepted.
+    /// - Returns: The decoded bytes.
     public static func decode(data: Data) -> Data {
-        return Data(base64Encoded: data, options: .init(rawValue: 0))!
+        let digits = Array(data)
+        precondition(digits.count % 2 == 0, "Base16 input must have an even number of characters")
+        var output = Data(capacity: digits.count / 2)
+        var index = 0
+        while index < digits.count {
+            output.append(nibble(digits[index]) << 4 | nibble(digits[index + 1]))
+            index += 2
+        }
+        return output
+    }
+
+    private static func nibble(_ digit: UInt8) -> UInt8 {
+        switch digit {
+        case UInt8(ascii: "0")...UInt8(ascii: "9"): return digit - UInt8(ascii: "0")
+        case UInt8(ascii: "A")...UInt8(ascii: "F"): return digit - UInt8(ascii: "A") + 10
+        case UInt8(ascii: "a")...UInt8(ascii: "f"): return digit - UInt8(ascii: "a") + 10
+        default: preconditionFailure("Invalid Base16 character: \(digit)")
+        }
     }
 }
 
