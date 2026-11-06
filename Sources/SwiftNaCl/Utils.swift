@@ -51,8 +51,23 @@ public func bytesAsString(bytesIn: Data) -> String {
     return bytesIn.map { String(format: "%02hhx", $0) }.joined()
 }
 
+/// Returns `size` bytes from libsodium's cryptographically secure random number generator.
+///
+/// Wraps `randombytes_buf`, so the bytes come from the same generator on every
+/// platform the package supports (the OS CSPRNG that libsodium selects).
+///
+/// - Parameter size: The number of random bytes to return. Must not be negative.
+/// - Returns: `size` unpredictable bytes.
 public func random(size: Int = 32) -> Data {
-    return Data((0..<size).map { _ in UInt8.random(in: 0...255) })
+    precondition(size >= 0, "size must not be negative")
+    _ = Sodium()  // ensures sodium_init() has run
+    var buffer = Data(count: size)
+    buffer.withUnsafeMutableBytes { bufferPtr in
+        if let baseAddress = bufferPtr.baseAddress {
+            randombytes_buf(baseAddress, size)
+        }
+    }
+    return buffer
 }
 
 /**

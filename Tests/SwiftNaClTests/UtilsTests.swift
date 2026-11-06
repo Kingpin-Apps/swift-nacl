@@ -62,6 +62,24 @@ struct UtilsTests {
         #expect(randomData.count == size, "Random data size mismatch")
     }
 
+    @Test("random returns the requested size, including zero and the default")
+    func testRandomSizes() async throws {
+        #expect(random(size: 0).isEmpty)
+        #expect(random(size: 1).count == 1)
+        #expect(random(size: 1000).count == 1000)
+        #expect(random().count == 32)
+    }
+
+    @Test("random output differs between calls and is not all zero")
+    func testRandomUnpredictable() async throws {
+        let first = random(size: 64)
+        let second = random(size: 64)
+        #expect(first != second)
+        #expect(first != Data(count: 64))
+        // 4096 bytes should hit most of the 256 byte values.
+        #expect(Set(random(size: 4096)).count > 200)
+    }
+
     @Test("generates deterministic random data of requested size")
     func testRandomBytesDeterministic() async throws {
         let size = 32
