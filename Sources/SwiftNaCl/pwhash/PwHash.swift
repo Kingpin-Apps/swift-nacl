@@ -70,8 +70,8 @@ public struct PwHash {
     public func scryptsalsa208sha256Str(password: Data, opsLimit: Int? = nil, memLimit: Int? = nil) throws -> String {
         return try scrypt.str(
             password: password,
-            opsLimit: opsLimit ?? opsLimitInteractive,
-            memLimit: memLimit ?? memLimitInteractive
+            opsLimit: opsLimit ?? scryptOpsLimitInteractive,
+            memLimit: memLimit ?? scryptMemLimitInteractive
         )
     }
 
