@@ -39,20 +39,19 @@ public struct CryptoAead {
         )
     }
 
+    /// Encrypt the given `message` using the IETF ratified chacha20poly1305 construction described in RFC7539.
+    ///
+    /// - Parameters:
+    ///   - message: The message to encrypt.
+    ///   - aad: Additional data to authenticate but not encrypt, or `nil` for none.
+    ///   - nonce: The nonce; never reuse a nonce with the same key.
+    ///   - key: The 32-byte secret key.
+    ///
+    /// - Returns: The ciphertext followed by its authentication tag.
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func chacha20poly1305IetfEncrypt(message: Data, aad: Data?, nonce: Data, key: Data)
         throws -> Data
     {
-        /// Encrypt the given ``message`` using the IETF ratified chacha20poly1305 construction described in RFC7539.
-        ///
-        /// - Parameters:
-        ///     - message: `Data` to encrypt
-        ///     - aad: Additional authenticated data `Data`
-        ///     - nonce: Nonce `Data`
-        ///     - key: Key `Data`
-        ///
-        /// - Returns: Authenticated ciphertext `Data`.
-        /// - Throws: Raises a `SodiumError` if input is invalid.
-
         let mlen = message.count
 
         try ensure(
@@ -114,20 +113,19 @@ public struct CryptoAead {
         return Data(ciphertext[0..<Int(clen)])
     }
 
+    /// Decrypt the given `ciphertext` using the IETF ratified chacha20poly1305 construction described in RFC7539.
+    ///
+    /// - Parameters:
+    ///   - ciphertext: The ciphertext (with its authentication tag) to decrypt.
+    ///   - aad: Additional data to authenticate but not encrypt, or `nil` for none.
+    ///   - nonce: The nonce; never reuse a nonce with the same key.
+    ///   - key: The 32-byte secret key.
+    ///
+    /// - Returns: The decrypted message.
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func chacha20poly1305IetfDecrypt(ciphertext: Data, aad: Data?, nonce: Data, key: Data)
         throws -> Data
     {
-        /// Decrypt the given ``ciphertext`` using the IETF ratified chacha20poly1305 construction described in RFC7539.
-        ///
-        /// - Parameters:
-        ///     - ciphertext: `Data` to decrypt
-        ///     - aad: Additional authenticated data `Data`
-        ///     - nonce: Nonce `Data`
-        ///     - key: Key `Data`
-        ///
-        /// - Returns: The decrypted message `Data`.
-        /// - Throws: Raises a `SodiumError` if input is invalid.
-
         let clen = ciphertext.count
 
         try ensure(
@@ -189,20 +187,19 @@ public struct CryptoAead {
         return Data(message[0..<Int(mlen)])
     }
 
+    /// Encrypt the given `message` using the "legacy" construction described in draft-agl-tls-chacha20poly1305.
+    ///
+    /// - Parameters:
+    ///   - message: The message to encrypt.
+    ///   - aad: Additional data to authenticate but not encrypt, or `nil` for none.
+    ///   - nonce: The nonce; never reuse a nonce with the same key.
+    ///   - key: The 32-byte secret key.
+    ///
+    /// - Returns: The ciphertext followed by its authentication tag.
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func chacha20poly1305Encrypt(message: Data, aad: Data?, nonce: Data, key: Data) throws
         -> Data
     {
-        /// Encrypt the given ``message`` using the "legacy" construction described in draft-agl-tls-chacha20poly1305.
-        ///
-        /// - Parameters:
-        ///     - message: `Data` to encrypt
-        ///     - aad: Additional authenticated data `Data`
-        ///     - nonce: Nonce `Data`
-        ///     - key: Key `Data`
-        ///
-        /// - Returns: Authenticated ciphertext `Data`.
-        /// - Throws: Raises a `SodiumError` if input is invalid.
-
         let mlen = message.count
 
         try ensure(
@@ -264,20 +261,19 @@ public struct CryptoAead {
         return Data(ciphertext[0..<Int(clen)])
     }
 
+    /// Decrypt the given `ciphertext` using the "legacy" construction described in draft-agl-tls-chacha20poly1305.
+    ///
+    /// - Parameters:
+    ///   - ciphertext: The ciphertext (with its authentication tag) to decrypt.
+    ///   - aad: Additional data to authenticate but not encrypt, or `nil` for none.
+    ///   - nonce: The nonce; never reuse a nonce with the same key.
+    ///   - key: The 32-byte secret key.
+    ///
+    /// - Returns: The decrypted message.
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func chacha20poly1305Decrypt(ciphertext: Data, aad: Data?, nonce: Data, key: Data) throws
         -> Data
     {
-        /// Decrypt the given ``ciphertext`` using the "legacy" construction described in draft-agl-tls-chacha20poly1305.
-        ///
-        /// - Parameters:
-        ///     - ciphertext: `Data` to decrypt
-        ///     - aad: Additional authenticated data `Data`
-        ///     - nonce: Nonce `Data`
-        ///     - key: Key `Data`
-        ///
-        /// - Returns: The decrypted message `Data`.
-        /// - Throws: Raises a `SodiumError` if input is invalid.
-
         let clen = ciphertext.count
 
         try ensure(
@@ -339,20 +335,19 @@ public struct CryptoAead {
         return Data(message[0..<Int(mlen)])
     }
 
+    /// Encrypt the given `message` using the long-nonces xchacha20poly1305 construction.
+    ///
+    /// - Parameters:
+    ///   - message: The message to encrypt.
+    ///   - aad: Additional data to authenticate but not encrypt, or `nil` for none.
+    ///   - nonce: The nonce; never reuse a nonce with the same key.
+    ///   - key: The 32-byte secret key.
+    ///
+    /// - Returns: The ciphertext followed by its authentication tag.
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func xchacha20poly1305IetfEncrypt(message: Data, aad: Data?, nonce: Data, key: Data)
         throws -> Data
     {
-        /// Encrypt the given ``message`` using the long-nonces xchacha20poly1305 construction.
-        ///
-        /// - Parameters:
-        ///     - message: `Data` to encrypt
-        ///     - aad: Additional authenticated data `Data`
-        ///     - nonce: Nonce `Data`
-        ///     - key: Key `Data`
-        ///
-        /// - Returns: Authenticated ciphertext `Data`.
-        /// - Throws: Raises a `SodiumError` if input is invalid.
-
         let mlen = message.count
 
         try ensure(
@@ -414,20 +409,19 @@ public struct CryptoAead {
         return Data(ciphertext[0..<Int(clen)])
     }
 
+    /// Decrypt the given `ciphertext` using the long-nonces xchacha20poly1305 construction.
+    ///
+    /// - Parameters:
+    ///   - ciphertext: The ciphertext (with its authentication tag) to decrypt.
+    ///   - aad: Additional data to authenticate but not encrypt, or `nil` for none.
+    ///   - nonce: The nonce; never reuse a nonce with the same key.
+    ///   - key: The 32-byte secret key.
+    ///
+    /// - Returns: The decrypted message.
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func xchacha20poly1305IetfDecrypt(ciphertext: Data, aad: Data?, nonce: Data, key: Data)
         throws -> Data
     {
-        /// Decrypt the given ``ciphertext`` using the long-nonces xchacha20poly1305 construction.
-        ///
-        /// - Parameters:
-        ///     - ciphertext: `Data` to decrypt
-        ///     - aad: Additional authenticated data `Data`
-        ///     - nonce: Nonce `Data`
-        ///     - key: Key `Data`
-        ///
-        /// - Returns: The decrypted message `Data`.
-        /// - Throws: Raises a `SodiumError` if input is invalid.
-
         let clen = ciphertext.count
 
         try ensure(

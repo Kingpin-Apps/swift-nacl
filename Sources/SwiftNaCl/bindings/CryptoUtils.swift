@@ -2,15 +2,14 @@ import Foundation
 import Clibsodium
 
 public struct CryptoUtils {
+    /// Compares two byte buffers in constant time (`sodium_memcmp`).
+    ///
+    /// - Parameters:
+    ///   - inp1: The first buffer.
+    ///   - inp2: The second buffer.
+    ///
+    /// - Returns: `true` if both buffers have the same length and contents.
     public func sodiumMemcmp(_ inp1: Data, _ inp2: Data) -> Bool {
-        /// Compare contents of two memory regions in constant time
-        ///
-        /// - Parameters:
-        ///     - inp1: `Data`
-        ///     - inp2: `Data`
-        ///
-        /// - Returns: `Bool`
-        
         let ln = max(inp1.count, inp2.count)
         
         var buf1 = [UInt8](repeating: 0, count: ln)
@@ -25,15 +24,14 @@ public struct CryptoUtils {
         return eqL && eqC
     }
 
+    /// Pads `s` to a multiple of `blocksize` using the ISO/IEC 7816-4 algorithm (`sodium_pad`).
+    ///
+    /// - Parameters:
+    ///   - s: The bytes to pad.
+    ///   - blocksize: The block size; must be greater than zero.
+    ///
+    /// - Returns: The padded bytes.
     public func sodiumPad(_ s: Data, blocksize: Int) throws -> Data {
-        /// Pad the input bytearray ``s`` to a multiple of ``blocksize`` using the ISO/IEC 7816-4 algorithm
-        ///
-        /// - Parameters:
-        ///     - s: Input bytes string `Data`
-        ///     - blocksize: `Int`
-        ///
-        /// - Returns: padded string `Data`
-        
         try ensure(blocksize > 0, raising: .valueError("Block size must be greater than 0"))
         
         let s_len = s.count
@@ -48,15 +46,14 @@ public struct CryptoUtils {
         return Data(buf[0..<p_len])
     }
 
+    /// Removes ISO/IEC 7816-4 padding from `s` (`sodium_unpad`).
+    ///
+    /// - Parameters:
+    ///   - s: The padded bytes.
+    ///   - blocksize: The block size used for padding.
+    ///
+    /// - Returns: The unpadded bytes.
     public func sodiumUnpad(_ s: Data, blocksize: Int) throws -> Data {
-        /// Remove ISO/IEC 7816-4 padding from the input byte array ``s``
-        ///
-        /// - Parameters:
-        ///     - s: Input bytes string `Data`
-        ///     - blocksize: `Int`
-        ///
-        /// - Returns: unpadded string `Data`
-        
         let s_len = s.count
         var u_len: size_t = 0
         let rc = s.withUnsafeBytes { (sPtr: UnsafeRawBufferPointer) in
@@ -70,14 +67,12 @@ public struct CryptoUtils {
         return Data(s[0..<u_len])
     }
 
+    /// Increments a byte sequence interpreted as a little-endian unsigned integer (`sodium_increment`).
+    ///
+    /// - Parameter inp: The little-endian integer to increment.
+    ///
+    /// - Returns: A byte sequence of the same length holding `inp + 1`, wrapping on overflow.
     public func sodiumIncrement(_ inp: Data) -> Data {
-        /// Increment the value of a byte-sequence interpreted as the little-endian representation of a unsigned big integer.
-        ///
-        /// - Parameters:
-        ///     - inp: Input bytes buffer `Data`
-        ///
-        /// - Returns: a byte-sequence representing, as a little-endian unsigned big integer, the value ``to_int(inp)`` incremented by one.
-        
         let ln = inp.count
         var buf = [UInt8](repeating: 0, count: ln)
         
@@ -88,16 +83,15 @@ public struct CryptoUtils {
         return Data(buf.prefix(ln))
     }
 
+    /// Adds two same-sized byte sequences interpreted as little-endian unsigned integers, in
+    /// constant time for a given length (`sodium_add`).
+    ///
+    /// - Parameters:
+    ///   - a: The first little-endian integer.
+    ///   - b: The second little-endian integer, the same length as `a`.
+    ///
+    /// - Returns: `(a + b) mod 2^(8 * a.count)` as a little-endian byte sequence.
     public func sodiumAdd(_ a: Data, _ b: Data) -> Data {
-        /// Given a couple of *same-sized* byte sequences, interpreted as the little-endian representation of two unsigned integers, compute
-        /// the modular addition of the represented values, in constant time for a given common length of the byte sequences.
-        ///
-        /// - Parameters:
-        ///     - a: Input bytes buffer `Data`
-        ///     - b: Input bytes buffer `Data`
-        ///
-        /// - Returns: a byte-sequence representing, as a little-endian big integer, the integer value of ``(to_int(a) + to_int(b)) mod 2^(8*len(a))``
-        
         let ln = a.count
         var buf_a = [UInt8](repeating: 0, count: ln)
         var buf_b = [UInt8](repeating: 0, count: ln)

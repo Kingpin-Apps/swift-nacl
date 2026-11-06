@@ -79,22 +79,22 @@ public class Blake2b {
 }
 
 public struct Hashlib {
-    public let bytes: Int
     /// Default digest size for `blake2b` hash
-    public let bytesMin: Int
+    public let bytes: Int
     /// Minimum allowed digest size for `blake2b` hash
-    public let bytesMax: Int
+    public let bytesMin: Int
     /// Maximum allowed digest size for `blake2b` hash
-    public let keyBytes: Int
+    public let bytesMax: Int
     /// Default size of the `key` byte array for `blake2b` hash
-    public let keyBytesMin: Int
+    public let keyBytes: Int
     /// Minimum allowed size of the `key` byte array for `blake2b` hash
-    public let keyBytesMax: Int
+    public let keyBytesMin: Int
     /// Maximum allowed size of the `key` byte array for `blake2b` hash
-    public let saltBytes: Int
+    public let keyBytesMax: Int
     /// Maximum allowed length of the `salt` byte array for `blake2b` hash
-    public let personalBytes: Int
+    public let saltBytes: Int
     /// Maximum allowed length of the `personalization` byte array for `blake2b` hash
+    public let personalBytes: Int
     
     private let sodium: Sodium
 
@@ -111,19 +111,19 @@ public struct Hashlib {
         self.personalBytes = sodium.cryptoGenericHash.personalBytes
     }
     
+    /// Derive a cryptographic key using the scrypt KDF.
+    ///
+    /// - Parameters:
+    ///   - password: The password to hash.
+    ///   - salt: The salt to use.
+    ///   - n: CPU/memory cost parameter.
+    ///   - r: Block size parameter.
+    ///   - p: Parallelization parameter.
+    ///   - maxmem: Maximum memory to use.
+    ///   - dklen: Desired key length.
+    /// - Returns: The derived key.
+    /// - Throws: A ``SodiumError`` if the parameters are invalid or scrypt is unavailable.
     public func scrypt(password: Data, salt: Data = Data(), n: Int = 1 << 4, r: Int = 8, p: Int = 1, maxmem: Int = 1 << 25, dklen: Int = 64) throws -> Data {
-        /// Derive a cryptographic key using the scrypt KDF.
-        ///
-        /// - Parameters:
-        ///   - password: The password to hash.
-        ///   - salt: The salt to use.
-        ///   - n: CPU/memory cost parameter.
-        ///   - r: Block size parameter.
-        ///   - p: Parallelization parameter.
-        ///   - maxmem: Maximum memory to use.
-        ///   - dklen: Desired key length.
-        /// - Returns: The derived key.
-        /// - Throws: `UnavailableError` if called when using a minimal build of libsodium.
         return try sodium.cryptoPwHash
             .scryptsalsa208sha256LL(
                 passwd: password,

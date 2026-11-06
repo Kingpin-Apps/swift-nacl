@@ -1,21 +1,27 @@
-/// Implementations of client, server key exchange
 import Clibsodium
 import Foundation
 
+/// Bindings to libsodium's client-server key exchange (`crypto_kx`).
+///
+/// Both sides derive a pair of shared session keys: one for receiving (`rxKey`)
+/// and one for transmitting (`txKey`).
 public struct CryptoKx {
+    /// The size of a public key in bytes (32).
     public let publicKeyBytes = Int(crypto_kx_publickeybytes())
+    /// The size of a secret key in bytes (32).
     public let secretKeyBytes = Int(crypto_kx_secretkeybytes())
+    /// The size of a seed for ``seedKeypair(seed:)`` in bytes (32).
     public let seedBytes = Int(crypto_kx_seedbytes())
+    /// The size of each session key in bytes (32).
     public let sessionKeyBytes = Int(crypto_kx_sessionkeybytes())
     
+    /// Generates a random key-exchange key pair (`crypto_kx_keypair`).
+    ///
+    /// - Note: This duplicates `crypto_box_keypair`, but is included for API consistency.
+    ///
+    /// - Returns: A tuple containing the public key and secret key.
+    /// - Throws: A ``SodiumError`` if key generation fails.
     public func keypair() throws -> (publicKey: Data, secretKey: Data) {
-        /// Generate a key pair.
-        ///
-        /// - Note: This is a duplicate crypto_box_keypair, but is included for api consistency.
-        ///
-        /// - Returns: Tuple containing the public and secret keys.
-        /// - Throws: Raises a `SodiumError` if key generation fails.
-        
         var publicKey = Data(count: publicKeyBytes)
         var secretKey = Data(count: secretKeyBytes)
         
@@ -36,17 +42,17 @@ public struct CryptoKx {
         return (publicKey, secretKey)
     }
 
+    /// Returns a key pair deterministically generated from `seed` (`crypto_kx_seed_keypair`).
+    ///
+    /// - Note: This is functionally the same as `crypto_box_seed_keypair`, but it uses
+    ///   the BLAKE2b hash primitive instead of SHA-512. It is included mainly for API
+    ///   consistency when using `crypto_kx`.
+    ///
+    /// - Parameter seed: A ``seedBytes``-byte (32) seed.
+    ///
+    /// - Returns: A tuple containing the public key and secret key.
+    /// - Throws: A ``SodiumError`` if keypair generation fails.
     public func seedKeypair(seed: Data) throws -> (publicKey: Data, secretKey: Data) {
-        /// Returns a (public, secret) key pair deterministically generated from an input ``seed``.
-        /// - Note: This is functionally the same as crypto_box_seed_keypair, however it uses the blake2b hash primitive instead of sha512.
-        /// It is included mainly for api consistency when using crypto_kx.
-        ///
-        /// - Parameters:
-        ///     - seed: `Data`
-        ///
-        /// - Returns: A tuple containing the public key and secret key.
-        /// - Throws: Raises a `SodiumError` if keypair generation fails.
-        
         try ensure(
             seed.count == seedBytes,
             raising: .valueError("Seed must be a \(seedBytes) byte long Data sequence")
@@ -76,17 +82,18 @@ public struct CryptoKx {
         return (publicKey, secretKey)
     }
 
+    /// Computes the client's session keys (`crypto_kx_client_session_keys`).
+    ///
+    /// The client's `rxKey` equals the server's `txKey`, and vice versa.
+    ///
+    /// - Parameters:
+    ///   - clientPublicKey: The client's public key.
+    ///   - clientSecretKey: The client's secret key.
+    ///   - serverPublicKey: The server's public key.
+    ///
+    /// - Returns: A tuple containing the receive and transmit keys.
+    /// - Throws: A ``SodiumError`` if input is invalid or key generation fails.
     public func clientSessionKeys(clientPublicKey: Data, clientSecretKey: Data, serverPublicKey: Data) throws -> (rxKey: Data, txKey: Data) {
-        /// Generate session keys for the client.
-        ///
-        /// - Parameters:
-        ///     - clientPublicKey: The client's public key.
-        ///     - clientSecretKey: The client's secret key.
-        ///     - serverPublicKey: The server's public key.
-        ///
-        /// - Returns: A tuple containing the receive and transmit keys.
-        /// - Throws: Raises a `SodiumError` if input is invalid or key generation fails.
-        
         try ensure(
             clientPublicKey.count == publicKeyBytes,
             raising: .valueError("Client public key must be a \(publicKeyBytes) bytes long Data sequence")
@@ -133,17 +140,18 @@ public struct CryptoKx {
         return (rxKey, txKey)
     }
 
+    /// Computes the server's session keys (`crypto_kx_server_session_keys`).
+    ///
+    /// The server's `rxKey` equals the client's `txKey`, and vice versa.
+    ///
+    /// - Parameters:
+    ///   - serverPublicKey: The server's public key.
+    ///   - serverSecretKey: The server's secret key.
+    ///   - clientPublicKey: The client's public key.
+    ///
+    /// - Returns: A tuple containing the receive and transmit keys.
+    /// - Throws: A ``SodiumError`` if input is invalid or key generation fails.
     public func serverSessionKeys(serverPublicKey: Data, serverSecretKey: Data, clientPublicKey: Data) throws -> (rxKey: Data, txKey: Data) {
-        /// Generate session keys for the server.
-        ///
-        /// - Parameters:
-        ///    - serverPublicKey: The server's public key.
-        ///    - serverSecretKey: The server's secret key.
-        ///    - clientPublicKey: The client's public key.
-        ///
-        /// - Returns: A tuple containing the receive and transmit keys.
-        /// - Throws: Raises a `SodiumError` if input is invalid or key generation fails.
-        
         try ensure(
             serverPublicKey.count == publicKeyBytes,
             raising: .valueError("Server public key must be a \(publicKeyBytes) bytes long Data sequence")

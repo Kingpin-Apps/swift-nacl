@@ -1,11 +1,20 @@
 import Clibsodium
 import Foundation
 
+/// Bindings to libsodium's secret-key authenticated encryption
+/// (`crypto_secretbox`, XSalsa20-Poly1305).
+///
+/// For a higher-level API that manages nonces, use ``SecretBox``.
 public struct CryptoSecretBox {
+    /// The size of a key in bytes (32).
     public let keyBytes = crypto_secretbox_keybytes()
+    /// The size of a nonce in bytes (24).
     public let nonceBytes = crypto_secretbox_noncebytes()
+    /// The zero padding that the original NaCl API expects before a message, in bytes (32).
     public let zeroBytes = crypto_secretbox_zerobytes()
+    /// The zero padding that the original NaCl API leaves before a ciphertext, in bytes (16).
     public let boxZeroBytes = crypto_secretbox_boxzerobytes()
+    /// The size of the authentication tag in bytes (16).
     public let macBytes = crypto_secretbox_macbytes()
     /// The largest message, in bytes, that can be encrypted with one key/nonce pair.
     ///
@@ -13,18 +22,18 @@ public struct CryptoSecretBox {
     /// an `Int`, so the value is exposed as `UInt64`.
     public let messageBytesMax = UInt64(UInt(bitPattern: crypto_secretbox_messagebytes_max()))
 
-    /**
-     Encrypts the given message using the provided nonce and key.
-
-     - Parameters:
-       - message: The message to encrypt.
-       - nonce: The nonce to use for encryption.
-       - key: The key to use for encryption.
-     - Returns: The encrypted message.
-     - Throws: `CryptoError.invalidKey` if the key length is invalid.
-               `CryptoError.invalidNonce` if the nonce length is invalid.
-               `CryptoError.encryptionFailed` if encryption fails.
-     */
+    /// Encrypts `message` with the original NaCl `crypto_secretbox` API.
+    ///
+    /// The result is the ciphertext with the leading ``boxZeroBytes`` padding removed,
+    /// so it is the same as ``easy(message:nonce:key:)``.
+    ///
+    /// - Parameters:
+    ///   - message: The message to encrypt.
+    ///   - nonce: The ``nonceBytes``-byte (24) nonce; never reuse a nonce with the same key.
+    ///   - key: The ``keyBytes``-byte (32) secret key.
+    /// - Returns: The authentication tag followed by the encrypted message.
+    /// - Throws: ``SodiumError/valueError(_:)`` if the key or nonce has the wrong length,
+    ///   or ``SodiumError/cryptoError(_:)`` if encryption fails.
     public func box(message: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
@@ -62,18 +71,16 @@ public struct CryptoSecretBox {
         return ciphertext.subdata(in: boxZeroBytes..<ciphertext.count)
     }
 
-    /**
-     Decrypts the given ciphertext using the provided nonce and key.
-
-     - Parameters:
-       - ciphertext: The ciphertext to decrypt.
-       - nonce: The nonce to use for decryption.
-       - key: The key to use for decryption.
-     - Returns: The decrypted message.
-     - Throws: `CryptoError.invalidKey` if the key length is invalid.
-               `CryptoError.invalidNonce` if the nonce length is invalid.
-               `CryptoError.decryptionFailed` if decryption fails.
-     */
+    /// Decrypts a ciphertext produced by ``box(message:nonce:key:)`` with the original NaCl
+    /// `crypto_secretbox_open` API.
+    ///
+    /// - Parameters:
+    ///   - ciphertext: The authentication tag followed by the encrypted message.
+    ///   - nonce: The ``nonceBytes``-byte (24) nonce used for encryption.
+    ///   - key: The ``keyBytes``-byte (32) secret key.
+    /// - Returns: The decrypted message.
+    /// - Throws: ``SodiumError/valueError(_:)`` if the key or nonce has the wrong length,
+    ///   or ``SodiumError/cryptoError(_:)`` if the ciphertext fails authentication.
     public func open(ciphertext: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
@@ -111,18 +118,15 @@ public struct CryptoSecretBox {
         return plaintext.subdata(in: zeroBytes..<plaintext.count)
     }
 
-    /**
-     Encrypts the given message using the provided nonce and key with easy method.
-
-     - Parameters:
-       - message: The message to encrypt.
-       - nonce: The nonce to use for encryption.
-       - key: The key to use for encryption.
-     - Returns: The encrypted message.
-     - Throws: `CryptoError.invalidKey` if the key length is invalid.
-               `CryptoError.invalidNonce` if the nonce length is invalid.
-               `CryptoError.encryptionFailed` if encryption fails.
-     */
+    /// Encrypts `message` with `crypto_secretbox_easy` (XSalsa20-Poly1305).
+    ///
+    /// - Parameters:
+    ///   - message: The message to encrypt.
+    ///   - nonce: The ``nonceBytes``-byte (24) nonce; never reuse a nonce with the same key.
+    ///   - key: The ``keyBytes``-byte (32) secret key.
+    /// - Returns: The ``macBytes``-byte authentication tag followed by the encrypted message.
+    /// - Throws: ``SodiumError/valueError(_:)`` if the key or nonce has the wrong length,
+    ///   or ``SodiumError/cryptoError(_:)`` if encryption fails.
     public func easy(message: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(
@@ -161,19 +165,17 @@ public struct CryptoSecretBox {
         return ciphertext
     }
 
-    /**
-     Decrypts the given ciphertext using the provided nonce and key with easy method.
-
-     - Parameters:
-       - ciphertext: The ciphertext to decrypt.
-       - nonce: The nonce to use for decryption.
-       - key: The key to use for decryption.
-     - Returns: The decrypted message.
-     - Throws: `CryptoError.invalidKey` if the key length is invalid.
-               `CryptoError.invalidNonce` if the nonce length is invalid.
-               `CryptoError.invalidCiphertext` if the ciphertext length is invalid.
-               `CryptoError.decryptionFailed` if decryption fails.
-     */
+    /// Decrypts and authenticates a ciphertext produced by ``easy(message:nonce:key:)``
+    /// (`crypto_secretbox_open_easy`).
+    ///
+    /// - Parameters:
+    ///   - ciphertext: The authentication tag followed by the encrypted message.
+    ///   - nonce: The ``nonceBytes``-byte (24) nonce used for encryption.
+    ///   - key: The ``keyBytes``-byte (32) secret key.
+    /// - Returns: The decrypted message.
+    /// - Throws: ``SodiumError/valueError(_:)`` if the key or nonce has the wrong length or
+    ///   the ciphertext is shorter than ``macBytes``, or ``SodiumError/cryptoError(_:)`` if
+    ///   the ciphertext fails authentication.
     public func openEasy(ciphertext: Data, nonce: Data, key: Data) throws -> Data {
         try ensure(key.count == keyBytes, raising: .valueError("Invalid key"))
         try ensure(

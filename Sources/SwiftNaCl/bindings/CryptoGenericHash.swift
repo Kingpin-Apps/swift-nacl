@@ -32,11 +32,10 @@ public struct CryptoGenericHash {
     private let overlong = "{0} length greater than {1} bytes"
     private let tooBig = "{0} greater than {1}"
 
+    /// Check hash parameters
+    ///
+    /// - Throws: A ``SodiumError`` if the parameters are invalid.
     private func checkParams(digestSize: Int, key: Data, salt: Data, person: Data) throws {
-        /// Check hash parameters
-        ///
-        /// - Throws: Raises a `SodiumError` if the parameters are invalid.
-
         try ensure(
             digestSize <= bytesMax,
             raising: .valueError(String(format: tooBig, "Digest_size", bytesMax)))
@@ -51,22 +50,21 @@ public struct CryptoGenericHash {
             raising: .valueError(String(format: overlong, "Person", personalBytes)))
     }
 
+    /// Hashes `data` with BLAKE2b in one call (`crypto_generichash_blake2b_salt_personal`).
+    ///
+    /// - Parameters:
+    ///   - data: The input data to the hash function
+    ///   - digestSize: The size of the hash digest, between ``bytesMin`` and ``bytesMax``. Defaults to ``bytes`` (32).
+    ///   - key: An optional key, at most ``keyBytesMax`` bytes long.
+    ///   - salt: An optional salt, at most ``saltBytes`` bytes long; zero-padded if shorter.
+    ///   - person: An optional personalization string, at most ``personalBytes`` bytes long; zero-padded if shorter.
+    ///
+    /// - Returns: The `digestSize`-byte digest.
+    /// - Throws: A ``SodiumError`` if the parameters are invalid.
     public func blake2bSaltPersonal(
         data: Data, digestSize: Int = crypto_generichash_blake2b_bytes(), key: Data = Data(),
         salt: Data = Data(), person: Data = Data()
     ) throws -> Data {
-        /// One shot hash interface
-        ///
-        /// - Parameters:
-        ///    - data: The input data to the hash function
-        ///    - digestSize: The size of the hash digest. Must be at most `crypto_generichash_blake2b_bytes()`
-        ///    - key: Must be at most `crypto_generichash_blake2b_keybytes()`
-        ///    - salt: Must be at most `crypto_generichash_blake2b_saltbytes()`. Will be zero-padded if needed
-        ///    - person: The personalization string.  Will be zero-padded if needed
-        ///
-        /// - Returns: The digest_size long digest
-        /// - Throws: Raises a `SodiumError` if the parameters are invalid.
-        
         try checkParams(digestSize: digestSize, key: key, salt: salt, person: person)
 
         var digest = Data(count: digestSize)
@@ -109,21 +107,20 @@ public struct CryptoGenericHash {
         return digest
     }
 
+    /// Create a new initialized blake2b hash state.
+    ///
+    /// - Parameters:
+    ///   - key: An optional key, at most ``keyBytesMax`` bytes long.
+    ///   - salt: An optional salt, at most ``saltBytes`` bytes long; zero-padded if shorter.
+    ///   - person: An optional personalization string, at most ``personalBytes`` bytes long; zero-padded if shorter.
+    ///   - digestSize: The size of the hash digest, between ``bytesMin`` and ``bytesMax``. Defaults to ``bytes`` (32).
+    ///
+    /// - Returns: An initialized `Blake2State`
+    /// - Throws: A ``SodiumError`` if input is invalid.
     public func blake2bInit(
         key: Data = Data(), salt: Data = Data(), person: Data = Data(),
         digestSize: Int = crypto_generichash_blake2b_bytes()
     ) throws -> Blake2State {
-        /// Create a new initialized blake2b hash state.
-        ///
-        /// - Parameters:
-        ///    - key: Must be at most `crypto_generichash_blake2b_keybytes()`
-        ///    - salt: Must be at most `crypto_generichash_blake2b_saltbytes()`. Will be zero-padded if needed
-        ///    - person: The personalization string.  Will be zero-padded if needed
-        ///    - digestSize: The size of the hash digest. Must be at most `crypto_generichash_blake2b_bytes()`
-        ///
-        ///
-        /// - Returns: An initialized `Blake2State`
-        /// - Throws: Raises a `SodiumError` if input is invalid.
         try checkParams(digestSize: digestSize, key: key, salt: salt, person: person)
 
         let state = Blake2State(digestSize: digestSize)
@@ -161,15 +158,14 @@ public struct CryptoGenericHash {
         return state
     }
 
+    /// Update the blake2b hash state
+    ///
+    /// - Parameters:
+    ///   - state: An initialized Blake2bState object as returned by ``blake2bInit(key:salt:person:digestSize:)``
+    ///   - data: The input data to the hash function
+    ///
+    /// - Throws: A ``SodiumError`` if failed to update the state.
     public func blake2bUpdate(state: Blake2State, data: Data) throws {
-        /// Update the blake2b hash state
-        ///
-        /// - Parameters:
-        ///   - state: An initialized Blake2bState object as returned from `crypto_generichash_blake2b_init`
-        ///   - data: The input data to the hash function
-        ///
-        /// - Throws: Raises a `SodiumError` if failed to update the state.
-
         let rc = state.statebuf.withUnsafeMutableBytes { (statePtr: UnsafeMutableRawBufferPointer) in
             data.withUnsafeBytes { (dataPtr: UnsafeRawBufferPointer) in
                 guard let stateRawPtr = statePtr.baseAddress,
@@ -186,15 +182,14 @@ public struct CryptoGenericHash {
         try ensure(rc == 0, raising: .runtimeError("Unexpected failure"))
     }
 
+    /// Finalize the blake2b hash state and return the digest.
+    ///
+    /// - Parameters:
+    ///   - state: An initialized Blake2bState object as returned by ``blake2bInit(key:salt:person:digestSize:)``
+    /// - Returns: The blake2 digest of the passed-in data stream
+    ///
+    /// - Throws: A ``SodiumError`` if failed to finalize the state.
     public func blake2bFinal(state: Blake2State) throws -> Data {
-        /// Finalize the blake2b hash state and return the digest.
-        ///
-        /// - Parameters:
-        ///   - state: An initialized Blake2bState object as returned from `crypto_generichash_blake2b_init`
-        /// - Returns: The blake2 digest of the passed-in data stream
-        ///
-        /// - Throws: Raises a `SodiumError` if failed to finalize the state.
-
         var digest = Data(count: bytesMax)
         
         let rc = state.statebuf.withUnsafeMutableBytes { (statePtr: UnsafeMutableRawBufferPointer) in
