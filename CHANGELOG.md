@@ -1,3 +1,25 @@
+## 1.1.0 (2026-11-06)
+
+### Feat
+
+- make the Ed25519ph state initializer and ed25519ScalarInvert public
+- make CryptoSecretBox, CryptoKx and CryptoShortHash methods public
+- make SecretBox and Aead public
+- expose EncryptedMessage nonce, ciphertext and combined bytes
+
+### Fix
+
+- allow Blake2b digests up to the 64-byte maximum
+- return only the requested digest size from blake2bFinal
+- require a key for Hash.siphash24 and siphashx24
+- keep CryptoSecretBox.messageBytesMax an Int by clamping the libsodium value
+- return an empty plaintext from CryptoSecretBox.openEasy for an empty message
+- draw random(size:) bytes from libsodium randombytes_buf
+- derive the VRF signing key fingerprint from the public key
+- encode Base16Encoder output as hex
+- match PyNaCl nonce handling and key validation in SecretBox and Aead
+- use the secretbox MAC and message-size constants in SecretBox
+
 ## 1.0.3 (2026-09-22)
 
 ### Fix
